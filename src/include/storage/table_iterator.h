@@ -5,33 +5,41 @@
 #include "concurrency/txn.h"
 #include "record/row.h"
 
+//#include "table_heap.h" // !!! specially added
+
 class TableHeap;
 
 class TableIterator {
 public:
- // you may define your own constructor based on your member variables
- explicit TableIterator(TableHeap *table_heap, RowId rid, Txn *txn);
+    //constructor
+    explicit TableIterator(TableHeap *table_heap, RowId rid, Txn *txn);
 
- explicit TableIterator(const TableIterator &other);
+    //copy constructor
+    explicit TableIterator(const TableIterator &other);
 
-  virtual ~TableIterator();
 
-  bool operator==(const TableIterator &itr) const;
+    virtual ~TableIterator();
 
-  bool operator!=(const TableIterator &itr) const;
+    bool operator==(const TableIterator &itr) const;
 
-  const Row &operator*();
+    bool operator!=(const TableIterator &itr) const;
 
-  Row *operator->();
+    const Row &operator*();
 
-  TableIterator &operator=(const TableIterator &itr) noexcept;
+    Row *operator->();
 
-  TableIterator &operator++();
+    TableIterator &operator=(const TableIterator &itr) noexcept;
 
-  TableIterator operator++(int);
+    TableIterator &operator++();
+
+    TableIterator operator++(int);
 
 private:
-  // add your own private member variables here
+    // add your own private member variables here
+    /* in the whole process we didn't modify the Row* pointer's pointing location */
+    Row* curRow;
+    TableHeap* tableHeap;
+    Txn* txn;
 };
 
 #endif  // MINISQL_TABLE_ITERATOR_H
