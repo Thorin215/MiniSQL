@@ -112,8 +112,26 @@ class TableHeap {
       : buffer_pool_manager_(buffer_pool_manager),
         schema_(schema),
         log_manager_(log_manager),
-        lock_manager_(lock_manager) {
-    ASSERT(false, "Not implemented yet.");
+        lock_manager_(lock_manager)
+  {
+      // since Page0 and Page1 stored Catalog and Index.
+      // We need to Start at Page2
+      /*page_id_t newPageId=INVALID_PAGE_ID;
+      //allocate space in buffer pool
+      auto newPage = reinterpret_cast<TablePage *>(buffer_pool_manager->NewPage(newPageId));
+      this->first_page_id_ = newPage->GetPageId();
+      newPage->Init(newPage->GetPageId(), INVALID_PAGE_ID, log_manager, txn);
+
+      newPage->SetNextPageId(INVALID_PAGE_ID);
+      // Flush First Page
+      buffer_pool_manager_->UnpinPage(newPage->GetPageId(), true);*/
+      page_id_t newpage;
+      auto page = reinterpret_cast<TablePage *>(buffer_pool_manager->NewPage(newpage));
+      this->first_page_id_ = page->GetPageId();
+      page->Init(page->GetPageId(), INVALID_PAGE_ID, log_manager, txn);
+      // Flush First Page
+      buffer_pool_manager_->UnpinPage(page->GetPageId(), true);
+      //ASSERT(false, "Not implemented yet.");
   };
 
   explicit TableHeap(BufferPoolManager *buffer_pool_manager, page_id_t first_page_id, Schema *schema,

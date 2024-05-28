@@ -224,6 +224,8 @@ CmpBool TypeFloat::CompareGreaterThanEquals(const Field &left, const Field &righ
   return GetCmpBool(left.value_.float_ >= right.value_.float_);
 }
 
+
+
 // ==============================TypeChar=============================
 uint32_t TypeChar::SerializeTo(const Field &field, char *buf) const {
   if (!field.IsNull()) {
