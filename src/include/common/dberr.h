@@ -12,6 +12,7 @@ enum dberr_t {
   DB_INDEX_NOT_FOUND,
   DB_COLUMN_NAME_NOT_EXIST,
   DB_KEY_NOT_FOUND,
+  DB_EXECUTE,
   DB_QUIT
 };
 
