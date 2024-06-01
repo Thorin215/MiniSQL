@@ -87,7 +87,10 @@ void CLOCKReplacer::Pin(frame_id_t frame_id) {
   std::scoped_lock lock{mutx_};
   if (clock_status.find(frame_id) != clock_status.end()&&!clock_status[frame_id].first) {
     clock_status[frame_id].first = true;
-    clock_list.erase(frame_id);
+//    clock_list.erase(frame_id);
+    //wxy: For execute successfully,I have commnt it.
+    //So wc need to uncommit it to merge your newest clock_replacer.cpp
+    //xzkz doesn't care this file,doesn't change
   }
 }
 
@@ -97,7 +100,10 @@ void CLOCKReplacer::Unpin(frame_id_t frame_id) {
     return ;
   } else {
     if (clock_list.size() >= capacity) {
-      clock_list.pop_front(frame_id);
+//      clock_list.pop_front(frame_id);
+      //wxy: For execute successfully,I have commnt it.
+      //So wc need to uncommit it to merge your newest clock_replacer.cpp
+      //xzkz doesn't care this file,doesn't change
     }
     clock_list.push_back(frame_id);
     clock_status[frame_id] = {false, true}; // 初始化为未固定且参考位为1
