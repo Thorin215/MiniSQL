@@ -23,22 +23,109 @@ struct CheckPoint {
 class RecoveryManager {
 public:
     /**
-    * TODO: Student Implement
+    * wxy Implements
     */
-    void Init(CheckPoint &last_checkpoint) {}
+    void Init(CheckPoint &last_checkpoint) {
+      persist_lsn_ = last_checkpoint.checkpoint_lsn_;
+      active_txns_ = std::move(last_checkpoint.active_txns_);
+      data_ = std::move(last_checkpoint.persist_data_);
+    }
 
     /**
-    * TODO: Student Implement
+    * wxy Implements
     */
-    void RedoPhase() {}
+    void RedoPhase() {
+      for(auto log = log_recs_[persist_lsn_];
+          ;log = log_recs_[++persist_lsn_]){
+        //parse the log
+          active_txns_[log->txn_id_] = log->lsn_;
+        switch(log->type_){
+          case(LogRecType::kInvalid):
+            break;
+          case(LogRecType::kInsert):
+              data_[log->ins_key_] = log->ins_val_;
+            break;
+          case(LogRecType::kDelete):
+              data_.erase(log->del_key_);
+            break;
+          case(LogRecType::kUpdate):
+            data_.erase(log->old_key_);
+            data_[log->new_key_]= log->new_val_;
+            break;
+          case(LogRecType::kBegin):
+            break;
+          case(LogRecType::kCommit):
+              active_txns_.erase(log->txn_id_);
+            break;
+          case(LogRecType::kAbort):
+              for(auto log_roll = log_recs_[active_txns_[log->txn_id_]];
+                  ;log_roll = log_recs_[log_roll->prev_lsn_] )
+              {
+                switch (log_roll->type_) {
+                  case(LogRecType::kInsert):
+                      data_.erase(log_roll->ins_key_);
+                    break;
+                  case(LogRecType::kDelete):
+                    data_.emplace(log_roll->del_key_,log_roll->del_val_);
+                    break;
+                  case (LogRecType::kUpdate):
+                    data_.erase(log_roll->new_key_);
+                    data_.emplace(log_roll->old_key_,log_roll->old_val_);
+                    break;
+                  default:
+                    break;
+                }
+                if(log_roll->prev_lsn_ == INVALID_LSN){
+                  break;
+                }
+              }
+              active_txns_.erase(log->txn_id_);
+            break;
+          default:
+            break;
+        }
+        if(persist_lsn_>=(lsn_t)(log_recs_.size()-1)){
+          break;
+        }
+      }
+    }
 
     /**
-    * TODO: Student Implement
+    * wxy Implements
     */
-    void UndoPhase() {}
+    void UndoPhase() {
+      //abort all the active
+      for(auto pair:active_txns_){
+        for(auto log_roll = log_recs_[pair.second];
+           ;log_roll = log_recs_[log_roll->prev_lsn_] )
+        {
+          if(log_roll == nullptr){
+            break;
+          }
+          switch (log_roll->type_) {
+            case(LogRecType::kInsert):
+              data_.erase(log_roll->ins_key_);
+              break;
+            case(LogRecType::kDelete):
+              data_.emplace(log_roll->del_key_,log_roll->del_val_);
+              break;
+            case (LogRecType::kUpdate):
+              data_.erase(log_roll->new_key_);
+              data_.emplace(log_roll->old_key_,log_roll->old_val_);
+              break;
+            default:
+              break;
+          }
+          if(log_roll->prev_lsn_ == INVALID_LSN){
+            break;
+          }
+        }
+      }
+      active_txns_.clear();
+    }
 
     // used for test only
-    void AppendLogRec(LogRecPtr log_rec) { log_recs_.emplace(log_rec->lsn_, log_rec); }
+    void AppendLogRec(const LogRecPtr& log_rec) { log_recs_.emplace(log_rec->lsn_, log_rec); }
 
     // used for test only
     inline KvDatabase &GetDatabase() { return data_; }
