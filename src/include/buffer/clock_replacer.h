@@ -39,11 +39,9 @@ class CLOCKReplacer : public Replacer {
   size_t Size() override;
 
  private:
-  std::mutex mutx_;                                    // 线程锁
-  size_t capacity;                                     // 容量
-  std::list<frame_id_t> clock_list;                    // 可以被替换的页列表
-  std::unordered_map<frame_id_t, std::pair<bool, bool>> clock_status; // 页状态: <是否固定, 时钟参考位>
-  std::list<frame_id_t>::iterator hand_;               // 当前指针
+  size_t capacity;
+  list<frame_id_t> clock_list;               // replacer中可以被替换的数据页
+  map<frame_id_t, frame_id_t> clock_status;  // 数据页的存储状态
 };
 
 #endif  // MINISQL_CLOCK_REPLACER_H

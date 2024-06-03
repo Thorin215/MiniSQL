@@ -62,6 +62,7 @@ class BPlusTree {
     }
     out << "digraph G {" << std::endl;
     Page *root_page = buffer_pool_manager_->FetchPage(root_page_id_);
+      //std::cout<<root_page_id_<<std::endl;
     auto *node = reinterpret_cast<BPlusTreePage *>(root_page->GetData());
     ToGraph(node, buffer_pool_manager_, out, schema);
     out << "}" << std::endl;

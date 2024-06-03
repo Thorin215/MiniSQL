@@ -8,7 +8,9 @@
 
 class GenericKey {
   friend class KeyManager;
-  char data[0];
+
+private:
+    char data[0];
 };
 
 class KeyManager {

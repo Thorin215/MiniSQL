@@ -228,9 +228,6 @@ void ExecuteEngine::ExecuteInformation(dberr_t result) {
     case DB_KEY_NOT_FOUND:
       cout << "Key not exists." << endl;
       break;
-    case DB_EXECUTE:
-      cout << "It is file execute time Now"<<endl;
-      break;
     case DB_QUIT:
       cout << "Bye." << endl;
       break;
@@ -336,265 +333,55 @@ dberr_t ExecuteEngine::ExecuteShowTables(pSyntaxNode ast, ExecuteContext *contex
 }
 
 /**
- * wxy Implements
+ * TODO: Student Implement
  */
 dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *context) {
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteCreateTable" << std::endl;
 #endif
-
-  //I don't set the index because of the initial value "0"
-  //primary keys are not placed (Maybe TableInfo)
-  //Txn is initial
-  //Schema id initial (Maybe need change)
-  string table_name = ast->child_->val_;
-  vector<TableInfo *> tables;
-  dbs_[current_db_]->catalog_mgr_->GetTables(tables);
-  for(auto table :tables){
-    if(table->GetTableName()==table_name){
-      return DB_TABLE_ALREADY_EXIST;
-    }
-  }
-  vector<Column *> Table_Columns;
-  pSyntaxNode column_node = ast->child_->next_->child_;
-  while(column_node!= nullptr){
-    if(column_node->type_ == SyntaxNodeType::kNodeIdentifier){
-      string col_name = column_node->child_->val_;
-      TypeId col_type;
-      Column* new_col;
-      bool is_unique = (string)column_node->val_=="unique"?true: false;
-      if((string)column_node->child_->next_->val_=="int"){
-        col_type = TypeId::kTypeInt;
-      }else if((string)column_node->child_->next_->val_=="char"){
-        col_type = TypeId::kTypeChar;
-      }else if((string)column_node->child_->next_->val_=="float"){
-        col_type = TypeId::kTypeFloat;
-      }else{
-        col_type = TypeId::kTypeInvalid;
-      }
-      if(column_node->child_->next_->child_!= nullptr){
-        //char
-        uint32_t col_length = (uint32_t)atoi(column_node->child_->next_->child_->val_);
-        new_col = new Column(col_name,col_type,col_length,0,false,is_unique);
-      }else{
-        //non-char
-        new_col = new Column(col_name,col_type,0, false,is_unique);
-      }
-      Table_Columns.push_back(new_col);
-
-    }else if(column_node->type_ == SyntaxNodeType::kNodeColumnList){
-      //primary key
-      pSyntaxNode primary_node = column_node->child_;
-      while(primary_node!= nullptr){
-        string primary_col = primary_node->val_;
-        primary_node = primary_node->next_;
-      }
-    }
-    column_node = column_node->next_;
-  }
-  Schema* table_schema = new Schema(Table_Columns);
-  Txn* table_txn = new Txn();
-  TableInfo* tableInfo = TableInfo::Create();
-
-  dbs_[current_db_]->catalog_mgr_->CreateTable(table_name,table_schema,table_txn,tableInfo);
-
-  return DB_SUCCESS;
+  return DB_FAILED;
 }
 
 /**
- * wxy Implements
+ * TODO: Student Implement
  */
 dberr_t ExecuteEngine::ExecuteDropTable(pSyntaxNode ast, ExecuteContext *context) {
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteDropTable" << std::endl;
 #endif
-  if (current_db_.empty()) {
-    cout << "No database selected" << endl;
-    return DB_FAILED;
-  }
-  string table_name = ast->child_->val_;
-  vector<TableInfo *> tables;
-  dbs_[current_db_]->catalog_mgr_->GetTables(tables);
-  bool flag = false;
-  for(auto table :tables){
-    if(table->GetTableName()==table_name){
-      flag = true;
-      break;
-    }
-  }
-  if(flag== false){
-    return DB_TABLE_NOT_EXIST;
-  }
-  dbs_[table_name]->catalog_mgr_->DropTable(table_name);
-  return DB_SUCCESS;
+ return DB_FAILED;
 }
 
 /**
- * wxy Implements nope
+ * TODO: Student Implement
  */
 dberr_t ExecuteEngine::ExecuteShowIndexes(pSyntaxNode ast, ExecuteContext *context) {
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteShowIndexes" << std::endl;
 #endif
-  if (current_db_.empty()) {
-    cout << "No database selected" << endl;
-    return DB_FAILED;
-  }
-  int max_w_table = 5,max_w_index=10,max_w_col=11,max_w_type=10;
-  vector<TableInfo*> tables;
-  dbs_[current_db_]->catalog_mgr_->GetTables(tables);
-  vector<IndexInfo *> Total_indexes;
-  vector<IndexInfo* > indexes;
-  vector<string>tem_tables_name;
-  for(auto table : tables){
-    max_w_table = table->GetTableName().length()>max_w_table?table->GetTableName().length():max_w_table;
-    dbs_[current_db_]->catalog_mgr_->GetTableIndexes(table->GetTableName(),indexes);
-    for(auto index:indexes){
-      tem_tables_name.push_back(table->GetTableName());
-      max_w_index = index->GetIndexName().length()>max_w_index?index->GetIndexName().length():max_w_index;
-      int total = -1;
-      for(auto col:index->GetIndexKeySchema()->GetColumns()){
-        total+=(col->GetName().length()+1);
-      }
-      max_w_col = total>max_w_col?total:max_w_col;
-      Total_indexes.push_back(index);
-    }
-  }
-  if(Total_indexes.empty()){
-    cout<<"Empty set (0.00 sec)"<<endl;
-    return DB_SUCCESS;
-  }
-  cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
-       << "+" << setfill('-') << setw(max_w_index + 2) << ""
-       << "+" << setfill('-') << setw(max_w_col + 2) << ""
-       << "+" << setfill('-') << setw(max_w_type + 2) << ""
-       << "+" << endl;
-  cout << "+" << setfill('-') << setw(max_w_table + 2) << "Table"
-       << "+" << setfill('-') << setw(max_w_index + 2) << "Index_name"
-       << "+" << setfill('-') << setw(max_w_col + 2) << "Column_name"
-       << "+" << setfill('-') << setw(max_w_type + 2) << "Index_type"
-       << "+" << endl;
-  cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
-       << "+" << setfill('-') << setw(max_w_index + 2) << ""
-       << "+" << setfill('-') << setw(max_w_col + 2) << ""
-       << "+" << setfill('-') << setw(max_w_type + 2) << ""
-       << "+" << endl;
-  int cnt_table = 0;
-  for(auto index:Total_indexes){
-    cout << "| " << std::left << setfill(' ') << setw(max_w_table) << tem_tables_name[cnt_table++];
-    cout << "| " << std::left << setfill(' ') << setw(max_w_index) << index->GetIndexName();
-    cout << "| " << std::left << setfill(' ') << setw(max_w_col) ;
-    for(auto col:index->GetIndexKeySchema()->GetColumns()){
-      if(col->GetName() == index->GetIndexKeySchema()->GetColumns()[0]->GetName()){
-        cout<<col->GetName();
-      }
-      cout<<","<<col->GetName();
-    }
-    cout << "| " << std::left << setfill(' ') << setw(max_w_type) << "BTREE"<<endl;
-  }
-  cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
-       << "+" << setfill('-') << setw(max_w_index + 2) << ""
-       << "+" << setfill('-') << setw(max_w_col + 2) << ""
-       << "+" << setfill('-') << setw(max_w_type + 2) << ""
-       << "+" << endl;
-  for (const auto &itr : tables) {
-  }
-  return DB_SUCCESS;
+  return DB_FAILED;
 }
 
 /**
- * wxy Implements
+ * TODO: Student Implement
  */
 dberr_t ExecuteEngine::ExecuteCreateIndex(pSyntaxNode ast, ExecuteContext *context) {
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteCreateIndex" << std::endl;
 #endif
-  string index_name = ast->child_->val_;
-  string table_name_index = ast->child_->next_->val_;
-  pSyntaxNode key_node = ast->child_->next_->next_->child_;
-  pSyntaxNode type_node = ast->child_->next_->next_->next_;
-  string index_type;
-  vector<IndexInfo *> indexes;
-  vector<string> index_keys;
-  dbs_[current_db_]->catalog_mgr_->GetTableIndexes(table_name_index,indexes);
-  for(auto item:indexes){
-    if(item->GetIndexName() == index_name){
-      return DB_INDEX_ALREADY_EXIST;
-    }
-  }
-  while(key_node->type_!=kNodeIdentifier){
-    index_keys.push_back(key_node->val_);
-    key_node = key_node->next_;
-  }
-  if(type_node->type_ != kNodeIdentifier){
-    index_type = type_node->child_->val_;
-  }else{
-    index_type = "btree";
-  }
-
-  Txn * txn = new Txn();
-  IndexInfo* indexInfo = IndexInfo::Create();
-//  Index
-  dbs_[current_db_]->catalog_mgr_->CreateIndex(table_name_index,index_name,index_keys,txn,indexInfo,index_type);
-  return DB_SUCCESS;
+  return DB_FAILED;
 }
 
 /**
- * wxy Implements
+ * TODO: Student Implement
  */
 dberr_t ExecuteEngine::ExecuteDropIndex(pSyntaxNode ast, ExecuteContext *context) {
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteDropIndex" << std::endl;
 #endif
-  string index_name = ast->child_->val_;
-  string table_name_drop;
-  vector<TableInfo*> tables;
-  dbs_[current_db_]->catalog_mgr_->GetTables(tables);
-  vector<IndexInfo* > indexes;
-  bool if_index = false;
-  for(auto table : tables){
-    dbs_[current_db_]->catalog_mgr_->GetTableIndexes(table->GetTableName(),indexes);
-    for(auto index:indexes){
-      if(index->GetIndexName() == index_name){
-        if_index = true;
-        table_name_drop = table->GetTableName();
-        break;
-      }
-    }
-    if(if_index == true){
-      break;
-    }
-  }
-  if(if_index == false){
-    return DB_INDEX_NOT_FOUND;
-  }
-  dbs_[current_db_]->catalog_mgr_->DropIndex(table_name_drop,index_name);
-  return DB_SUCCESS;
+  return DB_FAILED;
 }
 
-
-/**
- * wxy Implements
- */
-dberr_t ExecuteEngine::ExecuteExecfile(pSyntaxNode ast, ExecuteContext *context) {
-#ifdef ENABLE_EXECUTE_DEBUG
-  LOG(INFO) << "ExecuteExecfile" << std::endl;
-#endif
-  return DB_EXECUTE;
-}
-
-/**
- * wxy Implements
- */
-dberr_t ExecuteEngine::ExecuteQuit(pSyntaxNode ast, ExecuteContext *context) {
-#ifdef ENABLE_EXECUTE_DEBUG
-  LOG(INFO) << "ExecuteQuit" << std::endl;
-#endif
- return DB_QUIT;
-}
-
-
-//<-----Transcation --unused--->
 dberr_t ExecuteEngine::ExecuteTrxBegin(pSyntaxNode ast, ExecuteContext *context) {
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteTrxBegin" << std::endl;
@@ -614,4 +401,24 @@ dberr_t ExecuteEngine::ExecuteTrxRollback(pSyntaxNode ast, ExecuteContext *conte
   LOG(INFO) << "ExecuteTrxRollback" << std::endl;
 #endif
   return DB_FAILED;
+}
+
+/**
+ * TODO: Student Implement
+ */
+dberr_t ExecuteEngine::ExecuteExecfile(pSyntaxNode ast, ExecuteContext *context) {
+#ifdef ENABLE_EXECUTE_DEBUG
+  LOG(INFO) << "ExecuteExecfile" << std::endl;
+#endif
+  return DB_FAILED;
+}
+
+/**
+ * TODO: Student Implement
+ */
+dberr_t ExecuteEngine::ExecuteQuit(pSyntaxNode ast, ExecuteContext *context) {
+#ifdef ENABLE_EXECUTE_DEBUG
+  LOG(INFO) << "ExecuteQuit" << std::endl;
+#endif
+ return DB_FAILED;
 }

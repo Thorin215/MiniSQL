@@ -101,6 +101,9 @@ class Row {
   inline std::vector<Field *> &GetFields() { return fields_; }
 
   inline Field *GetField(uint32_t idx) const {
+      if(idx>=fields_.size()){
+          std::cout<<fields_.size()<<std::endl;
+      }
     ASSERT(idx < fields_.size(), "Failed to access field");
     return fields_[idx];
   }
