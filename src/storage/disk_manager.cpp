@@ -117,7 +117,7 @@ void DiskManager::DeAllocatePage(page_id_t logical_page_id) {
         /*success*/
         page_id_t BitMap_page_id=extent_id*(BITMAP_SIZE+1)+1;
         char *Page_Data = reinterpret_cast<char *>(Bitmap_page);
-        WritePhysicalPage(BitMap_page_id,Page_Data);
+        WritePhysicalPage(BitMap_page_id, Page_Data);
         /*cover the physical page*/
         WritePhysicalPage(Physical_Page_Id, Init_Page_Data);
     }else{

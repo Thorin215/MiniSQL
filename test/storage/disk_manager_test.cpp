@@ -41,12 +41,15 @@ TEST(DiskManagerTest, FreePageAllocationTest) {
   int extent_nums = 2;
   for (uint32_t i = 0; i < DiskManager::BITMAP_SIZE * extent_nums; i++) {
     page_id_t page_id = disk_mgr->AllocatePage();
+
     DiskFileMetaPage *meta_page = reinterpret_cast<DiskFileMetaPage *>(disk_mgr->GetMetaData());
+    // std::cout << meta_page << std::endl;
     EXPECT_EQ(i, page_id);
     EXPECT_EQ(i / DiskManager::BITMAP_SIZE + 1, meta_page->GetExtentNums());
     EXPECT_EQ(i + 1, meta_page->GetAllocatedPages());
     EXPECT_EQ(i % DiskManager::BITMAP_SIZE + 1, meta_page->GetExtentUsedPage(i / DiskManager::BITMAP_SIZE));
   }
+
   disk_mgr->DeAllocatePage(0);
   disk_mgr->DeAllocatePage(DiskManager::BITMAP_SIZE - 1);
   disk_mgr->DeAllocatePage(DiskManager::BITMAP_SIZE);

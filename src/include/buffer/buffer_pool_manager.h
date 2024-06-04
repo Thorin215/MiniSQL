@@ -32,12 +32,6 @@ class BufferPoolManager {
 
   bool CheckAllUnpinned();
 
-  void FlushAllPages();
-
-  void update_page(Page *page, page_id_t new_page_id, frame_id_t new_frame_id);
-
-  bool find_victim_page(frame_id_t *frame_id);
-
  private:
   /**
    * Allocate new page (operations like create index/table) For now just keep an increasing counter

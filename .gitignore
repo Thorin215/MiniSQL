@@ -5,4 +5,5 @@ datas/
 .vscode/
 .idea/
 cmake-build-debug/
-cmake-build-release/
+cmake-build-release/cmake-build-debug-wsl/glog-build/libglogd.so
+cmake-build-debug-wsl/
