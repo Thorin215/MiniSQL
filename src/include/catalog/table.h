@@ -54,8 +54,8 @@ class TableInfo {
   static TableInfo *Create() { return new TableInfo(); }
 
   ~TableInfo() {
-    delete table_meta_;
-    delete table_heap_;
+    // delete table_meta_;
+    // delete table_heap_;
   }
 
   void Init(TableMetadata *table_meta, TableHeap *table_heap) {

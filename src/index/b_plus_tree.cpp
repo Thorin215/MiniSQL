@@ -12,11 +12,11 @@
  */
 BPlusTree::BPlusTree(index_id_t index_id, BufferPoolManager *buffer_pool_manager, const KeyManager &KM,
                      int leaf_max_size, int internal_max_size)
-    : index_id_(index_id),
-      buffer_pool_manager_(buffer_pool_manager),
-      processor_(KM),
-      leaf_max_size_(leaf_max_size),
-      internal_max_size_(internal_max_size)
+        : index_id_(index_id),
+          buffer_pool_manager_(buffer_pool_manager),
+          processor_(KM),
+          leaf_max_size_(leaf_max_size),
+          internal_max_size_(internal_max_size)
 {
     if(leaf_max_size_==UNDEFINED_SIZE){
         leaf_max_size_=(PAGE_SIZE-LEAF_PAGE_HEADER_SIZE)/(KM.GetKeySize()+sizeof(RowId))-1;
@@ -49,9 +49,23 @@ void BPlusTree::Destroy(page_id_t current_page_id) { //recursively destroy
     }else{
         buffer_pool_manager_->UnpinPage(INDEX_ROOTS_PAGE_ID,false);
     }*/
+    if(current_page_id==INVALID_PAGE_ID){
+        assert(root_page_id_!=INVALID_PAGE_ID);
+        auto deletedRootPage=reinterpret_cast<BPlusTreeInternalPage*>(buffer_pool_manager_->FetchPage(root_page_id_));
+        deletedRootPage->SetSize(0);
+        AdjustRoot(deletedRootPage);
+        Destroy(root_page_id_);
+        return;
+    }
+
     BPlusTreePage* curPage=reinterpret_cast<BPlusTreePage*>(buffer_pool_manager_->FetchPage(current_page_id));
+
     if(curPage->IsLeafPage()){ //leaf page（递归出口）
+        curPage->SetSize(0);
         buffer_pool_manager_->DeletePage(current_page_id);
+        //测试root的删除
+        //assert(current_page_id==root_page_id_);
+        //assert(root_page_id_==INVALID_PAGE_ID);
     }else{ //internal page
         BPlusTreeInternalPage* internalPage=reinterpret_cast<BPlusTreeInternalPage*>(curPage);
         for(int index=0;index<internalPage->GetSize();index++)
@@ -105,6 +119,8 @@ bool BPlusTree::GetValue(const GenericKey *key, std::vector<RowId> &result, Txn 
  */
 //!!! changed add duplicate check
 bool BPlusTree::Insert(GenericKey *key, const RowId &value, Txn *transaction) {
+    //BPlusTreeLeafPage* leafPage=reinterpret_cast<BPlusTreeLeafPage*>(FindLeafPage(key, INVALID_PAGE_ID, false));
+    //std::cout<<leafPage->GetSize()<<std::endl;
     if(IsEmpty()){
         StartNewTree(key,value); //一些操作将在其中进行
         return true;
@@ -178,6 +194,7 @@ bool BPlusTree::InsertIntoLeaf(GenericKey *key, const RowId &value, Txn *transac
         }
     }
     else{ //duplicate
+        //std::cout<<leafPage->GetSize()<<std::endl;
         buffer_pool_manager_->UnpinPage(leafPage->GetPageId(),false);
         return false;
     }
@@ -413,7 +430,7 @@ void BPlusTree::Redistribute(InternalPage *neighbor_node, InternalPage *node, in
         neighbor_node->SetKeyAt(0, nullptr);
         parentPage->SetKeyAt(middleKeyIndex,newMiddleKey);
     }
-    //向后移的pair的key最终会变成parent需要更新的值
+        //向后移的pair的key最终会变成parent需要更新的值
     else{
         //找到node叶结点在parent中的index
         int middleKeyIndex=parentPage->ValueIndex(node->GetPageId());
@@ -447,7 +464,7 @@ bool BPlusTree::AdjustRoot(BPlusTreePage *old_root_node) {
         //此时还没有删掉root page
         return true;
     }
-    //case1:one last child
+        //case1:one last child
     else if(old_root_node->GetSize()==1){
         root_page_id_=(reinterpret_cast<InternalPage*>(old_root_node))->RemoveAndReturnOnlyChild();
         BPlusTreeLeafPage* newRootPage=reinterpret_cast<BPlusTreeLeafPage*>(buffer_pool_manager_->FetchPage(root_page_id_));
@@ -471,16 +488,32 @@ bool BPlusTree::AdjustRoot(BPlusTreePage *old_root_node) {
  * @return : index iterator
  */
 IndexIterator BPlusTree::Begin() {
-  return IndexIterator();
+    page_id_t pageId = root_page_id_;
+    if(pageId == INVALID_PAGE_ID){
+        return IndexIterator();
+    }
+    Page *page=FindLeafPage(nullptr, pageId, true);
+    LeafPage *leaf=reinterpret_cast<LeafPage *>(page->GetData());
+    page_id_t leafId=leaf->GetPageId();
+    IndexIterator iterator(leafId, buffer_pool_manager_, 0);
+    return iterator;
 }
 
 /*
- * Input parameter is low key, find the leaf page that contains the input key
+ * Input parameter is low-key, find the leaf page that contains the input key
  * first, then construct index iterator
  * @return : index iterator
  */
 IndexIterator BPlusTree::Begin(const GenericKey *key) {
-   return IndexIterator();
+    page_id_t pageId = root_page_id_;
+    if (pageId == INVALID_PAGE_ID) {
+        return IndexIterator();
+    }
+    Page *page = FindLeafPage(key, pageId, false);
+    LeafPage *leaf = reinterpret_cast<LeafPage *>(page->GetData());
+    int index = leaf->KeyIndex(key, processor_);
+    IndexIterator iterator(leaf->GetPageId(), buffer_pool_manager_, index);
+    return iterator;
 }
 
 /*
@@ -489,7 +522,7 @@ IndexIterator BPlusTree::Begin(const GenericKey *key) {
  * @return : index iterator
  */
 IndexIterator BPlusTree::End() {
-  return IndexIterator();
+    return IndexIterator(INVALID_PAGE_ID, buffer_pool_manager_, 0);
 }
 
 /*****************************************************************************
@@ -549,125 +582,125 @@ void BPlusTree::UpdateRootPageId(int insert_record) {
 void BPlusTree::
 ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out, Schema *schema) const {
     std::string leaf_prefix("LEAF_");
-  std::string internal_prefix("INT_");
-  if (page->IsLeafPage()) {
-    auto *leaf = reinterpret_cast<LeafPage *>(page);
-    // Print node name
-    out << leaf_prefix << leaf->GetPageId();
-    // Print node properties
-    out << "[shape=plain color=green ";
-    // Print data of the node
-    out << "label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n";
-    // Print data
-    out << "<TR><TD COLSPAN=\"" << leaf->GetSize() << "\">P=" << leaf->GetPageId()
-        << ",Parent=" << leaf->GetParentPageId() << "</TD></TR>\n";
-    out << "<TR><TD COLSPAN=\"" << leaf->GetSize() << "\">"
-        << "max_size=" << leaf->GetMaxSize() << ",min_size=" << leaf->GetMinSize() << ",size=" << leaf->GetSize()
-        << "</TD></TR>\n";
-    out << "<TR>";
-    for (int i = 0; i < leaf->GetSize(); i++) {
-      Row ans;
-      processor_.DeserializeToKey(leaf->KeyAt(i), ans, schema);
-      out << "<TD>" << ans.GetField(0)->toString() << "</TD>\n";
-    }
-    out << "</TR>";
-    // Print table end
-    out << "</TABLE>>];\n";
-    // Print Leaf node link if there is a next page
-    if (leaf->GetNextPageId() != INVALID_PAGE_ID) {
-      out << leaf_prefix << leaf->GetPageId() << " -> " << leaf_prefix << leaf->GetNextPageId() << ";\n";
-      out << "{rank=same " << leaf_prefix << leaf->GetPageId() << " " << leaf_prefix << leaf->GetNextPageId() << "};\n";
-    }
-
-    // Print parent links if there is a parent
-    if (leaf->GetParentPageId() != INVALID_PAGE_ID) {
-      out << internal_prefix << leaf->GetParentPageId() << ":p" << leaf->GetPageId() << " -> " << leaf_prefix
-          << leaf->GetPageId() << ";\n";
-    }
-  } else {
-    auto *inner = reinterpret_cast<InternalPage *>(page);
-    // Print node name
-    out << internal_prefix << inner->GetPageId();
-    // Print node properties
-    out << "[shape=plain color=pink ";  // why not?
-    // Print data of the node
-    out << "label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n";
-    // Print data
-    out << "<TR><TD COLSPAN=\"" << inner->GetSize() << "\">P=" << inner->GetPageId()
-        << ",Parent=" << inner->GetParentPageId() << "</TD></TR>\n";
-    out << "<TR><TD COLSPAN=\"" << inner->GetSize() << "\">"
-        << "max_size=" << inner->GetMaxSize() << ",min_size=" << inner->GetMinSize() << ",size=" << inner->GetSize()
-        << "</TD></TR>\n";
-    out << "<TR>";
-    for (int i = 0; i < inner->GetSize(); i++) {
-      out << "<TD PORT=\"p" << inner->ValueAt(i) << "\">";
-      if (i > 0) {
-          //std::cout<<i<<std::endl;
-        Row ans;
-        processor_.DeserializeToKey(inner->KeyAt(i), ans, schema);
-        out << ans.GetField(0)->toString();
-      } else {
-        out << " ";
-      }
-      out << "</TD>\n";
-    }
-    out << "</TR>";
-    // Print table end
-    out << "</TABLE>>];\n";
-    // Print Parent link
-    if (inner->GetParentPageId() != INVALID_PAGE_ID) {
-      out << internal_prefix << inner->GetParentPageId() << ":p" << inner->GetPageId() << " -> " << internal_prefix
-          << inner->GetPageId() << ";\n";
-    }
-    // Print leaves
-    for (int i = 0; i < inner->GetSize(); i++) {
-      auto child_page = reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(inner->ValueAt(i))->GetData());
-      ToGraph(child_page, bpm, out, schema);
-      if (i > 0) {
-        auto sibling_page = reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(inner->ValueAt(i - 1))->GetData());
-        if (!sibling_page->IsLeafPage() && !child_page->IsLeafPage()) {
-          out << "{rank=same " << internal_prefix << sibling_page->GetPageId() << " " << internal_prefix
-              << child_page->GetPageId() << "};\n";
+    std::string internal_prefix("INT_");
+    if (page->IsLeafPage()) {
+        auto *leaf = reinterpret_cast<LeafPage *>(page);
+        // Print node name
+        out << leaf_prefix << leaf->GetPageId();
+        // Print node properties
+        out << "[shape=plain color=green ";
+        // Print data of the node
+        out << "label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n";
+        // Print data
+        out << "<TR><TD COLSPAN=\"" << leaf->GetSize() << "\">P=" << leaf->GetPageId()
+            << ",Parent=" << leaf->GetParentPageId() << "</TD></TR>\n";
+        out << "<TR><TD COLSPAN=\"" << leaf->GetSize() << "\">"
+            << "max_size=" << leaf->GetMaxSize() << ",min_size=" << leaf->GetMinSize() << ",size=" << leaf->GetSize()
+            << "</TD></TR>\n";
+        out << "<TR>";
+        for (int i = 0; i < leaf->GetSize(); i++) {
+            Row ans;
+            processor_.DeserializeToKey(leaf->KeyAt(i), ans, schema);
+            out << "<TD>" << ans.GetField(0)->toString() << "</TD>\n";
         }
-        bpm->UnpinPage(sibling_page->GetPageId(), false);
-      }
+        out << "</TR>";
+        // Print table end
+        out << "</TABLE>>];\n";
+        // Print Leaf node link if there is a next page
+        if (leaf->GetNextPageId() != INVALID_PAGE_ID) {
+            out << leaf_prefix << leaf->GetPageId() << " -> " << leaf_prefix << leaf->GetNextPageId() << ";\n";
+            out << "{rank=same " << leaf_prefix << leaf->GetPageId() << " " << leaf_prefix << leaf->GetNextPageId() << "};\n";
+        }
+
+        // Print parent links if there is a parent
+        if (leaf->GetParentPageId() != INVALID_PAGE_ID) {
+            out << internal_prefix << leaf->GetParentPageId() << ":p" << leaf->GetPageId() << " -> " << leaf_prefix
+                << leaf->GetPageId() << ";\n";
+        }
+    } else {
+        auto *inner = reinterpret_cast<InternalPage *>(page);
+        // Print node name
+        out << internal_prefix << inner->GetPageId();
+        // Print node properties
+        out << "[shape=plain color=pink ";  // why not?
+        // Print data of the node
+        out << "label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n";
+        // Print data
+        out << "<TR><TD COLSPAN=\"" << inner->GetSize() << "\">P=" << inner->GetPageId()
+            << ",Parent=" << inner->GetParentPageId() << "</TD></TR>\n";
+        out << "<TR><TD COLSPAN=\"" << inner->GetSize() << "\">"
+            << "max_size=" << inner->GetMaxSize() << ",min_size=" << inner->GetMinSize() << ",size=" << inner->GetSize()
+            << "</TD></TR>\n";
+        out << "<TR>";
+        for (int i = 0; i < inner->GetSize(); i++) {
+            out << "<TD PORT=\"p" << inner->ValueAt(i) << "\">";
+            if (i > 0) {
+                //std::cout<<i<<std::endl;
+                Row ans;
+                processor_.DeserializeToKey(inner->KeyAt(i), ans, schema);
+                out << ans.GetField(0)->toString();
+            } else {
+                out << " ";
+            }
+            out << "</TD>\n";
+        }
+        out << "</TR>";
+        // Print table end
+        out << "</TABLE>>];\n";
+        // Print Parent link
+        if (inner->GetParentPageId() != INVALID_PAGE_ID) {
+            out << internal_prefix << inner->GetParentPageId() << ":p" << inner->GetPageId() << " -> " << internal_prefix
+                << inner->GetPageId() << ";\n";
+        }
+        // Print leaves
+        for (int i = 0; i < inner->GetSize(); i++) {
+            auto child_page = reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(inner->ValueAt(i))->GetData());
+            ToGraph(child_page, bpm, out, schema);
+            if (i > 0) {
+                auto sibling_page = reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(inner->ValueAt(i - 1))->GetData());
+                if (!sibling_page->IsLeafPage() && !child_page->IsLeafPage()) {
+                    out << "{rank=same " << internal_prefix << sibling_page->GetPageId() << " " << internal_prefix
+                        << child_page->GetPageId() << "};\n";
+                }
+                bpm->UnpinPage(sibling_page->GetPageId(), false);
+            }
+        }
     }
-  }
-  bpm->UnpinPage(page->GetPageId(), false);
+    bpm->UnpinPage(page->GetPageId(), false);
 }
 
 /**
  * This function is for debug only, you don't need to modify
  */
 void BPlusTree::ToString(BPlusTreePage *page, BufferPoolManager *bpm) const {
-  if (page->IsLeafPage()) {
-    auto *leaf = reinterpret_cast<LeafPage *>(page);
-    std::cout << "Leaf Page: " << leaf->GetPageId() << " parent: " << leaf->GetParentPageId()
-              << " next: " << leaf->GetNextPageId() << std::endl;
-    for (int i = 0; i < leaf->GetSize(); i++) {
-      std::cout << leaf->KeyAt(i) << ",";
+    if (page->IsLeafPage()) {
+        auto *leaf = reinterpret_cast<LeafPage *>(page);
+        std::cout << "Leaf Page: " << leaf->GetPageId() << " parent: " << leaf->GetParentPageId()
+                  << " next: " << leaf->GetNextPageId() << std::endl;
+        for (int i = 0; i < leaf->GetSize(); i++) {
+            std::cout << leaf->KeyAt(i) << ",";
+        }
+        std::cout << std::endl;
+        std::cout << std::endl;
+    } else {
+        auto *internal = reinterpret_cast<InternalPage *>(page);
+        std::cout << "Internal Page: " << internal->GetPageId() << " parent: " << internal->GetParentPageId() << std::endl;
+        for (int i = 0; i < internal->GetSize(); i++) {
+            std::cout << internal->KeyAt(i) << ": " << internal->ValueAt(i) << ",";
+        }
+        std::cout << std::endl;
+        std::cout << std::endl;
+        for (int i = 0; i < internal->GetSize(); i++) {
+            ToString(reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(internal->ValueAt(i))->GetData()), bpm);
+            bpm->UnpinPage(internal->ValueAt(i), false);
+        }
     }
-    std::cout << std::endl;
-    std::cout << std::endl;
-  } else {
-    auto *internal = reinterpret_cast<InternalPage *>(page);
-    std::cout << "Internal Page: " << internal->GetPageId() << " parent: " << internal->GetParentPageId() << std::endl;
-    for (int i = 0; i < internal->GetSize(); i++) {
-      std::cout << internal->KeyAt(i) << ": " << internal->ValueAt(i) << ",";
-    }
-    std::cout << std::endl;
-    std::cout << std::endl;
-    for (int i = 0; i < internal->GetSize(); i++) {
-      ToString(reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(internal->ValueAt(i))->GetData()), bpm);
-      bpm->UnpinPage(internal->ValueAt(i), false);
-    }
-  }
 }
 
 bool BPlusTree::Check() {
-  bool all_unpinned = buffer_pool_manager_->CheckAllUnpinned();
-  if (!all_unpinned) {
-    LOG(ERROR) << "problem in page unpin" << endl;
-  }
-  return all_unpinned;
+    bool all_unpinned = buffer_pool_manager_->CheckAllUnpinned();
+    if (!all_unpinned) {
+        LOG(ERROR) << "problem in page unpin" << endl;
+    }
+    return all_unpinned;
 }

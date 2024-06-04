@@ -59,7 +59,6 @@ class BPlusTreePage {
 
   void SetLSN(lsn_t lsn = INVALID_LSN);
 
-
  private:
   // member variable, attributes that both internal and leaf page share
   [[maybe_unused]] IndexPageType page_type_;
@@ -70,6 +69,5 @@ class BPlusTreePage {
   [[maybe_unused]] page_id_t parent_page_id_;
   [[maybe_unused]] page_id_t page_id_;
 };
-
 
 #endif  // MINISQL_B_PLUS_TREE_PAGE_H

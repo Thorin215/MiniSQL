@@ -14,6 +14,8 @@
 #include "concurrency/txn.h"
 #include "recovery/log_manager.h"
 
+
+
 class CatalogMeta {
   friend class CatalogManager;
 
@@ -106,9 +108,11 @@ class CatalogManager {
   dberr_t GetTable(const table_id_t table_id, TableInfo *&table_info);
 
  private:
-  [[maybe_unused]] BufferPoolManager *buffer_pool_manager_;
-  [[maybe_unused]] LockManager *lock_manager_;
-  [[maybe_unused]] LogManager *log_manager_;
+ /*un-used*/
+  BufferPoolManager *buffer_pool_manager_;
+  LockManager *lock_manager_;
+  LogManager *log_manager_;
+  
   CatalogMeta *catalog_meta_;
   std::atomic<table_id_t> next_table_id_;
   std::atomic<index_id_t> next_index_id_;

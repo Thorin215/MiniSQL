@@ -62,8 +62,7 @@ bool TablePage::MarkDelete(const RowId &rid, Txn *txn, LockManager *lock_manager
   return true;
 }
 
-// !!!here I modified the return type
-int TablePage::UpdateTuple(Row &new_row, Row *old_row, Schema *schema, Txn *txn, LockManager *lock_manager,
+bool TablePage::UpdateTuple(Row &new_row, Row *old_row, Schema *schema, Txn *txn, LockManager *lock_manager,
                             LogManager *log_manager) {
   ASSERT(old_row != nullptr && old_row->GetRowId().Get() != INVALID_ROWID.Get(), "invalid old row.");
   uint32_t serialized_size = new_row.GetSerializedSize(schema);
@@ -71,16 +70,16 @@ int TablePage::UpdateTuple(Row &new_row, Row *old_row, Schema *schema, Txn *txn,
   uint32_t slot_num = old_row->GetRowId().GetSlotNum();
   // If the slot number is invalid, abort.
   if (slot_num >= GetTupleCount()) {
-    return 1;
+    return false;
   }
   uint32_t tuple_size = GetTupleSize(slot_num);
   // If the tuple is deleted, abort.
   if (IsDeleted(tuple_size)) {
-    return 2;
+    return false;
   }
   // If there is not enough space to update, we need to update via delete followed by an insert (not enough space).
   if (GetFreeSpaceRemaining() + tuple_size < serialized_size) {
-    return 3;
+    return false;
   }
   // Copy out the old value.
   uint32_t tuple_offset = GetTupleOffsetAtSlot(slot_num);
@@ -101,7 +100,7 @@ int TablePage::UpdateTuple(Row &new_row, Row *old_row, Schema *schema, Txn *txn,
       SetTupleOffsetAtSlot(i, tuple_offset_i + tuple_size - new_row.GetSerializedSize(schema));
     }
   }
-  return 4;
+  return true;
 }
 
 void TablePage::ApplyDelete(const RowId &rid, Txn *txn, LogManager *log_manager) {
@@ -162,8 +161,6 @@ bool TablePage::GetTuple(Row *row, Schema *schema, Txn *txn, LockManager *lock_m
   uint32_t tuple_offset = GetTupleOffsetAtSlot(slot_num);
   uint32_t __attribute__((unused)) read_bytes = row->DeserializeFrom(GetData() + tuple_offset, schema);
   ASSERT(tuple_size == read_bytes, "Unexpected behavior in tuple deserialize.");
-
-  ASSERT(schema->GetColumnCount()==row->GetFields().size(),"wrong field size");
   return true;
 }
 

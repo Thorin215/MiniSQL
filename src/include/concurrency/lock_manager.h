@@ -186,4 +186,5 @@ private:
     TxnManager *txn_mgr_{nullptr};
 };
 
+
 #endif  // MINISQL_LOCK_MANAGER_H
