@@ -11,7 +11,7 @@ class TableMetadata {
   friend class TableInfo;
 
  public:
-  ~TableMetadata() { delete schema_; }
+  //~TableMetadata() { delete schema_; }
 
   uint32_t SerializeTo(char *buf) const;
 
@@ -54,8 +54,9 @@ class TableInfo {
   static TableInfo *Create() { return new TableInfo(); }
 
   ~TableInfo() {
-    delete table_meta_;
-    delete table_heap_;
+   // delete table_meta_;
+    //delete table_heap_;
+
   }
 
   void Init(TableMetadata *table_meta, TableHeap *table_heap) {

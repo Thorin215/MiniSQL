@@ -117,7 +117,7 @@ void DiskManager::DeAllocatePage(page_id_t logical_page_id) {
         /*success*/
         page_id_t BitMap_page_id=extent_id*(BITMAP_SIZE+1)+1;
         char *Page_Data = reinterpret_cast<char *>(Bitmap_page);
-        WritePhysicalPage(BitMap_page_id,Page_Data);
+        WritePhysicalPage(BitMap_page_id, Page_Data);
         /*cover the physical page*/
         WritePhysicalPage(Physical_Page_Id, Init_Page_Data);
     }else{
@@ -130,7 +130,7 @@ void DiskManager::DeAllocatePage(page_id_t logical_page_id) {
 bool DiskManager::IsPageFree(page_id_t logical_page_id) {
     char Page_Data[PAGE_SIZE];
 
-    ReadBitMapPage(logical_page_id/BITMAP_SIZE,Page_Data);
+    ReadBitMapPage(logical_page_id/BITMAP_SIZE, Page_Data);
 
     BitmapPage<PAGE_SIZE> * bitmap_page = reinterpret_cast<BitmapPage<PAGE_SIZE> *>(Page_Data);
     bool IsSuccess=bitmap_page->IsPageFree(logical_page_id%BITMAP_SIZE);

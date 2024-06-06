@@ -55,9 +55,9 @@ class IndexInfo {
   static IndexInfo *Create() { return new IndexInfo(); }
 
   ~IndexInfo() {
-    delete meta_data_;
-    delete index_;
-    delete key_schema_;
+    //delete meta_data_;
+    //delete index_;
+    //delete key_schema_;
   }
 
 /**
@@ -65,16 +65,26 @@ class IndexInfo {
  */
   void Init(IndexMetadata *meta_data, TableInfo *table_info, BufferPoolManager *buffer_pool_manager) {
     // Step1: init index metadata and table info
+    meta_data_ = meta_data;
+    table_info_ = table_info;
     // Step2: mapping index key to key schema
+    key_schema_ = Schema::ShallowCopySchema(table_info_->GetSchema(), meta_data_->GetKeyMapping());
     // Step3: call CreateIndex to create the index
-    ASSERT(false, "Not Implemented yet.");
+    index_ = CreateIndex(buffer_pool_manager,"bptree");
+    //ASSERT(false, "Not Implemented yet.");
   }
 
   inline Index *GetIndex() { return index_; }
 
+  inline TableInfo *GetTableInfo() const { return table_info_; }
+
   std::string GetIndexName() { return meta_data_->GetIndexName(); }
 
+  std::vector<uint32_t> GetKeyMap(){return meta_data_->GetKeyMapping();}
+
   IndexSchema *GetIndexKeySchema() { return key_schema_; }
+
+  Schema *GetTableSchema(){return table_info_->GetSchema();}
 
  private:
   explicit IndexInfo() : meta_data_{nullptr}, index_{nullptr}, key_schema_{nullptr} {}
@@ -84,6 +94,7 @@ class IndexInfo {
  private:
   IndexMetadata *meta_data_;
   Index *index_;
+  TableInfo *table_info_;
   IndexSchema *key_schema_;
 };
 

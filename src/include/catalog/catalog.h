@@ -11,8 +11,8 @@
 #include "common/config.h"
 #include "common/dberr.h"
 #include "concurrency/lock_manager.h"
+#include "concurrency/txn_manager.h"
 #include "concurrency/txn.h"
-#include "recovery/log_manager.h"
 
 class CatalogMeta {
   friend class CatalogManager;
@@ -25,11 +25,11 @@ class CatalogMeta {
   uint32_t GetSerializedSize() const;
 
   inline table_id_t GetNextTableId() const {
-    return table_meta_pages_.size() == 0 ? 0 : table_meta_pages_.rbegin()->first + 1;
+    return table_meta_pages_.size() == 0 ? 0 : table_meta_pages_.rbegin()->first;
   }
 
   inline index_id_t GetNextIndexId() const {
-    return index_meta_pages_.size() == 0 ? 0 : index_meta_pages_.rbegin()->first + 1;
+    return index_meta_pages_.size() == 0 ? 0 : index_meta_pages_.rbegin()->first;
   }
 
   static CatalogMeta *NewInstance() { return new CatalogMeta(); }
@@ -104,6 +104,24 @@ class CatalogManager {
   dberr_t LoadIndex(const index_id_t index_id, const page_id_t page_id);
 
   dberr_t GetTable(const table_id_t table_id, TableInfo *&table_info);
+
+ public:
+  dberr_t GetIndexes( std::vector<IndexInfo*> &index_infos) {
+    vector<index_id_t> index_ids;
+    for(auto it:table_names_){
+      string table_name=it.first;
+      if(index_names_.count(table_name)>0){
+        for(auto it2:index_names_.find(table_name)->second) {
+          index_ids.push_back(it2.second);
+        }
+      }
+    }
+   for(auto itr:indexes_){
+      index_infos.push_back(itr.second);
+   }
+  }
+
+
 
  private:
   [[maybe_unused]] BufferPoolManager *buffer_pool_manager_;
