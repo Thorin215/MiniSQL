@@ -22,6 +22,12 @@ class Column {
 
   void SetTableInd(uint32_t ind) { table_ind_ = ind; }
 
+  void SetTableLen(uint32_t char_len){ len_ = char_len; }
+
+  void SetTableNullable(bool is_nullable){ nullable_ = is_nullable;}
+
+  void SerTableUnique(bool is_unique){ unique_ = is_unique; }
+
   uint32_t GetTableInd() const { return table_ind_; }
 
   bool IsNullable() const { return nullable_; }

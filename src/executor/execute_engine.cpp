@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <string>
 
 #include <chrono>
 
@@ -27,6 +28,8 @@ ExecuteEngine::ExecuteEngine() {
   /** When you have completed all the code for
    *  the test, run it using main.cpp and uncomment
    *  this part of the code.
+   *  timestamp: 2024/6/6 19:56
+   **/
   struct dirent *stdir;
   while((stdir = readdir(dir)) != nullptr) {
     if( strcmp( stdir->d_name , "." ) == 0 ||
@@ -35,7 +38,6 @@ ExecuteEngine::ExecuteEngine() {
       continue;
     dbs_[stdir->d_name] = new DBStorageEngine(stdir->d_name, false);
   }
-   **/
   closedir(dir);
 }
 
@@ -232,7 +234,8 @@ void ExecuteEngine::ExecuteInformation(dberr_t result) {
       cout << "It is file execute time Now"<<endl;
       break;
     case DB_QUIT:
-      cout << "Bye." << endl;
+      cout << "Bye. " << endl;
+      cout << "©2024 By Thorin215 & Star0228 & xzkz."<< endl << "For educational use only." << endl;
       break;
     default:
       break;
@@ -357,12 +360,13 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
   }
   vector<Column *> Table_Columns;
   pSyntaxNode column_node = ast->child_->next_->child_;
+  uint32_t table_index = tables.size();
   while(column_node!= nullptr){
-    if(column_node->type_ == SyntaxNodeType::kNodeIdentifier){
+    if(column_node->type_ == SyntaxNodeType::kNodeColumnDefinition){
       string col_name = column_node->child_->val_;
       TypeId col_type;
       Column* new_col;
-      bool is_unique = (string)column_node->val_=="unique"?true: false;
+      bool is_unique = (column_node->val_!= nullptr&&(string)column_node->val_=="unique")?true: false;
       if((string)column_node->child_->next_->val_=="int"){
         col_type = TypeId::kTypeInt;
       }else if((string)column_node->child_->next_->val_=="char"){
@@ -374,11 +378,15 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
       }
       if(column_node->child_->next_->child_!= nullptr){
         //char
+        string check_length = column_node->child_->next_->child_->val_;
         uint32_t col_length = (uint32_t)atoi(column_node->child_->next_->child_->val_);
-        new_col = new Column(col_name,col_type,col_length,0,false,is_unique);
+        if(col_type ==kTypeChar&&(check_length.find('.')!=string::npos||check_length.find('-')!=string::npos)){
+          return DB_FAILED;
+        }
+        new_col = new Column(col_name,col_type,col_length,table_index,true,is_unique);
       }else{
         //non-char
-        new_col = new Column(col_name,col_type,0, false,is_unique);
+        new_col = new Column(col_name,col_type,table_index, true,is_unique);
       }
       Table_Columns.push_back(new_col);
 
@@ -387,19 +395,34 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
       pSyntaxNode primary_node = column_node->child_;
       while(primary_node!= nullptr){
         string primary_col = primary_node->val_;
+        bool is_find = false;
+        for(auto& item : Table_Columns){
+          if(item->GetName() == primary_col){
+            item->SetTableNullable(false);
+            item->SerTableUnique(true);
+            is_find = true;
+            break;
+          }
+        }
+        if(is_find == false){
+          return DB_KEY_NOT_FOUND;
+        }
         primary_node = primary_node->next_;
       }
     }
     column_node = column_node->next_;
   }
   Schema* table_schema = new Schema(Table_Columns);
-  Txn* table_txn = new Txn();
+//  Txn* table_txn = new Txn();
   TableInfo* tableInfo = TableInfo::Create();
+  TableMetadata* tem_meta = TableMetadata::Create(table_index,table_name,0,table_schema);
+  TableInfo* tem_info = TableInfo::Create();
+  tem_info->Init(tem_meta, nullptr);
+  return dbs_[current_db_]->catalog_mgr_->CreateTable
+      (table_name,table_schema->DeepCopySchema(table_schema), nullptr,tem_info);
 
-  dbs_[current_db_]->catalog_mgr_->CreateTable(table_name,table_schema,table_txn,tableInfo);
-
-  return DB_SUCCESS;
 }
+
 
 /**
  * wxy Implements
@@ -425,7 +448,7 @@ dberr_t ExecuteEngine::ExecuteDropTable(pSyntaxNode ast, ExecuteContext *context
   if(flag== false){
     return DB_TABLE_NOT_EXIST;
   }
-  dbs_[table_name]->catalog_mgr_->DropTable(table_name);
+  dbs_[current_db_]->catalog_mgr_->DropTable(table_name);
   return DB_SUCCESS;
 }
 

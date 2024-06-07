@@ -58,7 +58,7 @@ void InputCommand_file(char* input, const int len){
 void InputCommand(char *input, const int len) {
   memset(input, 0, len);
 
-  printf("minisql > ");
+  printf("BigTang minisql> ");
   int i = 0;
   char ch;
   while ((ch = getchar()) != ';') {
@@ -109,13 +109,13 @@ int main(int argc, char **argv) {
       printf("%s\n", MinisqlParserGetErrorMessage());
     } else {
       // Comment them out if you don't need to debug the syntax tree
-      printf("[INFO] Sql syntax parse ok!\n");
-      SyntaxTreePrinter printer(MinisqlGetParserRootNode());
+//      printf("[INFO] Sql syntax parse ok!\n");
+//      SyntaxTreePrinter printer(MinisqlGetParserRootNode());
 //      printer.PrintTree(syntax_tree_file_mgr[syntax_tree_id++]);
-      std::string file = "Syntax_tree_wxy.txt";
-      std::ofstream outFile(file);
-      printer.PrintTree(outFile);
-      outFile.close();
+//      std::string file = "Syntax_tree_wxy.txt";
+//      std::ofstream outFile(file);
+//      printer.PrintTree(outFile);
+//      outFile.close();
     }
     auto result = engine.Execute(MinisqlGetParserRootNode());
     //Execute in file
