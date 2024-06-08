@@ -268,46 +268,44 @@ void LockManager::DeleteNode(txn_id_t txn_id) {
 void LockManager::RunCycleDetection() {
   while(enable_cycle_detection_==true) {
     this_thread::sleep_for(cycle_detection_interval_);
-    {
-      unique_lock<mutex> lock_latch(latch_);
-      waits_for_.clear();
-      // construct the graph
-      // find all txn
-      unordered_map<RowId, set<txn_id_t>> data_txn_locked;
-      unordered_map<RowId, set<txn_id_t>> data_txn_unlocked;
-      for (auto& iter : lock_table_) {
-        //data_id
-        for (auto& request : iter.second.req_list_) {
-          //txn_id
-          //1.grantee locked
-          if(request.granted_ != LockMode::kNone) {
-            data_txn_locked[iter.first].emplace(request.txn_id_);
-          }else{
-            data_txn_unlocked[iter.first].emplace(request.txn_id_);
+    unique_lock<mutex> lock_latch(latch_);
+    waits_for_.clear();
+    // construct the graph
+    // find all txn
+    unordered_map<RowId, set<txn_id_t>> data_txn_locked;
+    unordered_map<RowId, set<txn_id_t>> data_txn_unlocked;
+    for (auto& iter : lock_table_) {
+      //data_id
+      for (auto& request : iter.second.req_list_) {
+        //txn_id
+        //1.grantee locked
+        if(request.granted_ != LockMode::kNone) {
+          data_txn_locked[iter.first].emplace(request.txn_id_);
+        }else{
+          data_txn_unlocked[iter.first].emplace(request.txn_id_);
+        }
+      }
+    }
+    for (auto &iter : lock_table_) {
+      //data_id
+      for (auto& request : iter.second.req_list_) {
+        //txn_id
+        //2.addedge
+        if(request.granted_ == LockMode::kNone) {
+          for(auto grant:data_txn_locked[iter.first]) {
+            AddEdge(request.txn_id_, grant);
           }
         }
       }
-      for (auto &iter : lock_table_) {
-        //data_id
-        for (auto& request : iter.second.req_list_) {
-          //txn_id
-          //2.addedge
-          if(request.granted_ == LockMode::kNone) {
-            for(auto grant:data_txn_locked[iter.first]) {
-              AddEdge(request.txn_id_, grant);
-            }
-          }
-        }
-      }
-      txn_id_t txn_id = INVALID_TXN_ID;
-      //detect cycle
-      while(HasCycle(txn_id)==true){
-        DeleteNode(txn_id);
-        txn_mgr_->GetTransaction(txn_id)->SetState(TxnState::kAborted);
-        for(auto item:data_txn_unlocked){
-          if(item.second.find(txn_id)!=item.second.end()){
-            lock_table_[item.first].cv_.notify_all();
-          }
+    }
+    txn_id_t txn_id = INVALID_TXN_ID;
+    //detect cycle
+    while(HasCycle(txn_id)==true){
+      DeleteNode(txn_id);
+      txn_mgr_->GetTransaction(txn_id)->SetState(TxnState::kAborted);
+      for(auto item:data_txn_unlocked){
+        if(item.second.find(txn_id)!=item.second.end()){
+          lock_table_[item.first].cv_.notify_all();
         }
       }
     }
