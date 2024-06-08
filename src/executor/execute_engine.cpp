@@ -353,17 +353,19 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
   string table_name = ast->child_->val_;
   vector<TableInfo *> tables;
   dbs_[current_db_]->catalog_mgr_->GetTables(tables);
+  uint32_t table_index = 0;
   for(auto table :tables){
     if(table->GetTableName()==table_name){
       return DB_TABLE_ALREADY_EXIST;
     }
   }
   vector<Column *> Table_Columns;
+  vector<string > index_keys;
   pSyntaxNode column_node = ast->child_->next_->child_;
-  uint32_t table_index = tables.size();
   while(column_node!= nullptr){
     if(column_node->type_ == SyntaxNodeType::kNodeColumnDefinition){
       string col_name = column_node->child_->val_;
+      index_keys.push_back(col_name);
       TypeId col_type;
       Column* new_col;
       bool is_unique = (column_node->val_!= nullptr&&(string)column_node->val_=="unique")?true: false;
@@ -383,10 +385,10 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
         if(col_type ==kTypeChar&&(check_length.find('.')!=string::npos||check_length.find('-')!=string::npos)){
           return DB_FAILED;
         }
-        new_col = new Column(col_name,col_type,col_length,table_index,true,is_unique);
+        new_col = new Column(col_name,col_type,col_length,table_index++,true,is_unique);
       }else{
         //non-char
-        new_col = new Column(col_name,col_type,table_index, true,is_unique);
+        new_col = new Column(col_name,col_type,table_index++, true,is_unique);
       }
       Table_Columns.push_back(new_col);
 
@@ -413,14 +415,13 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
     column_node = column_node->next_;
   }
   Schema* table_schema = new Schema(Table_Columns);
-//  Txn* table_txn = new Txn();
-  TableInfo* tableInfo = TableInfo::Create();
-  TableMetadata* tem_meta = TableMetadata::Create(table_index,table_name,0,table_schema);
-  TableInfo* tem_info = TableInfo::Create();
-  tem_info->Init(tem_meta, nullptr);
-  return dbs_[current_db_]->catalog_mgr_->CreateTable
+  TableInfo* tem_info ;
+  auto result = dbs_[current_db_]->catalog_mgr_->CreateTable
       (table_name,table_schema->DeepCopySchema(table_schema), nullptr,tem_info);
-
+  IndexInfo* indexInfo;
+  dbs_[current_db_]->catalog_mgr_->CreateIndex(
+      table_name,table_name+"_index",index_keys, nullptr,indexInfo,"bplus");
+  return result;
 }
 
 
@@ -545,21 +546,43 @@ dberr_t ExecuteEngine::ExecuteCreateIndex(pSyntaxNode ast, ExecuteContext *conte
       return DB_INDEX_ALREADY_EXIST;
     }
   }
-  while(key_node->type_!=kNodeIdentifier){
-    index_keys.push_back(key_node->val_);
+  while( key_node->type_!=kNodeIdentifier){
+    index_keys.push_back((string)key_node->val_);
+    if(key_node->next_ == nullptr){
+      break;
+    }
     key_node = key_node->next_;
   }
-  if(type_node->type_ != kNodeIdentifier){
+  if(type_node!= nullptr){
     index_type = type_node->child_->val_;
   }else{
     index_type = "btree";
   }
 
-  Txn * txn = new Txn();
-  IndexInfo* indexInfo = IndexInfo::Create();
+  IndexInfo* indexInfo = nullptr;
+  TableInfo* table_info;
+  dbs_[current_db_]->catalog_mgr_->GetTable(table_name_index,table_info);
+
 //  Index
-  dbs_[current_db_]->catalog_mgr_->CreateIndex(table_name_index,index_name,index_keys,txn,indexInfo,index_type);
-  return DB_SUCCESS;
+  auto result = dbs_[current_db_]->catalog_mgr_->CreateIndex(
+      table_name_index,index_name,index_keys, nullptr,indexInfo,index_type);
+//  return DB_SUCCESS;
+  TableHeap *tbl_heap = table_info->GetTableHeap();
+  if (result == dberr_t::DB_SUCCESS) {
+    const std::vector<uint32_t> key_mapping = indexInfo->GetKeyMap();
+    // insert the tuples already exist when creating index into the index
+    for (auto i = tbl_heap->Begin(nullptr); i != tbl_heap->End(); ++i) {
+      std::vector<Field> fields;
+      // Using the KeyMap to GetField In order to Get the Key Schema
+      for (auto iter = key_mapping.begin(); iter != key_mapping.end(); ++iter) {
+        fields.push_back(*(i->GetField(key_mapping[(*iter)])));
+      }
+      Row IndexRow(fields);
+      RowId rid(i->GetRowId());
+      indexInfo->GetIndex()->InsertEntry(IndexRow, rid, nullptr);
+    }
+  }
+  return DB_FAILED;
 }
 
 /**
