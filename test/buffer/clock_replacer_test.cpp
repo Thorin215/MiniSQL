@@ -38,7 +38,7 @@ TEST(CLOCKReplacerTest, SampleTest) {
     // EXPECT_EQ(5, value);
     // clock_replacer.Victim(&value);
     // EXPECT_EQ(6, value);
-    // clock_replacer.Victim(&value);
+    // clock_replacer.Victim(&value);沉淀
     // EXPECT_EQ(4, value);
 
     CLOCKReplacer clock_replacer_new(5);
