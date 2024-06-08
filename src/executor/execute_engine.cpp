@@ -345,11 +345,6 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteCreateTable" << std::endl;
 #endif
-
-  //I don't set the index because of the initial value "0"
-  //primary keys are not placed (Maybe TableInfo)
-  //Txn is initial
-  //Schema id initial (Maybe need change)
   string table_name = ast->child_->val_;
   vector<TableInfo *> tables;
   dbs_[current_db_]->catalog_mgr_->GetTables(tables);
@@ -493,11 +488,12 @@ dberr_t ExecuteEngine::ExecuteShowIndexes(pSyntaxNode ast, ExecuteContext *conte
        << "+" << setfill('-') << setw(max_w_col + 2) << ""
        << "+" << setfill('-') << setw(max_w_type + 2) << ""
        << "+" << endl;
-  cout << "+" << setfill('-') << setw(max_w_table + 2) << "Table"
-       << "+" << setfill('-') << setw(max_w_index + 2) << "Index_name"
-       << "+" << setfill('-') << setw(max_w_col + 2) << "Column_name"
-       << "+" << setfill('-') << setw(max_w_type + 2) << "Index_type"
-       << "+" << endl;
+  cout << "| " << std::left << setfill(' ') << setw(max_w_table+1) << "Table"
+       << "| " << std::left << setfill(' ') << setw(max_w_index+1) << "Index_name"
+       << "| " << std::left << setfill(' ') << setw(max_w_col+1) << "Column_name"
+       << "| " << std::left << setfill(' ') << setw(max_w_type+1) << "Index_type"
+       << "|"<<endl;
+
   cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
        << "+" << setfill('-') << setw(max_w_index + 2) << ""
        << "+" << setfill('-') << setw(max_w_col + 2) << ""
@@ -505,16 +501,18 @@ dberr_t ExecuteEngine::ExecuteShowIndexes(pSyntaxNode ast, ExecuteContext *conte
        << "+" << endl;
   int cnt_table = 0;
   for(auto index:Total_indexes){
-    cout << "| " << std::left << setfill(' ') << setw(max_w_table) << tem_tables_name[cnt_table++];
-    cout << "| " << std::left << setfill(' ') << setw(max_w_index) << index->GetIndexName();
-    cout << "| " << std::left << setfill(' ') << setw(max_w_col) ;
+    cout << "| " << std::left << setfill(' ') << setw(max_w_table+1) << tem_tables_name[cnt_table++];
+    cout << "| " << std::left << setfill(' ') << setw(max_w_index+1) << index->GetIndexName();
+    string tol_col;
     for(auto col:index->GetIndexKeySchema()->GetColumns()){
-      if(col->GetName() == index->GetIndexKeySchema()->GetColumns()[0]->GetName()){
-        cout<<col->GetName();
+      if (col->GetName() == index->GetIndexKeySchema()->GetColumns()[0]->GetName()) {
+        tol_col+=col->GetName();
+      } else {
+        tol_col += (","+col->GetName());
       }
-      cout<<","<<col->GetName();
     }
-    cout << "| " << std::left << setfill(' ') << setw(max_w_type) << "BTREE"<<endl;
+    cout << "| " << std::left << setfill(' ') << setw(max_w_col) << tol_col;
+    cout << " | " << std::left << setfill(' ') << setw(max_w_type) << "BTREE"<< " |"<<endl;
   }
   cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
        << "+" << setfill('-') << setw(max_w_index + 2) << ""
@@ -546,7 +544,7 @@ dberr_t ExecuteEngine::ExecuteCreateIndex(pSyntaxNode ast, ExecuteContext *conte
       return DB_INDEX_ALREADY_EXIST;
     }
   }
-  while( key_node->type_!=kNodeIdentifier){
+  while( key_node->type_==kNodeIdentifier){
     index_keys.push_back((string)key_node->val_);
     if(key_node->next_ == nullptr){
       break;
@@ -564,25 +562,8 @@ dberr_t ExecuteEngine::ExecuteCreateIndex(pSyntaxNode ast, ExecuteContext *conte
   dbs_[current_db_]->catalog_mgr_->GetTable(table_name_index,table_info);
 
 //  Index
-  auto result = dbs_[current_db_]->catalog_mgr_->CreateIndex(
+  return dbs_[current_db_]->catalog_mgr_->CreateIndex(
       table_name_index,index_name,index_keys, nullptr,indexInfo,index_type);
-//  return DB_SUCCESS;
-  TableHeap *tbl_heap = table_info->GetTableHeap();
-  if (result == dberr_t::DB_SUCCESS) {
-    const std::vector<uint32_t> key_mapping = indexInfo->GetKeyMap();
-    // insert the tuples already exist when creating index into the index
-    for (auto i = tbl_heap->Begin(nullptr); i != tbl_heap->End(); ++i) {
-      std::vector<Field> fields;
-      // Using the KeyMap to GetField In order to Get the Key Schema
-      for (auto iter = key_mapping.begin(); iter != key_mapping.end(); ++iter) {
-        fields.push_back(*(i->GetField(key_mapping[(*iter)])));
-      }
-      Row IndexRow(fields);
-      RowId rid(i->GetRowId());
-      indexInfo->GetIndex()->InsertEntry(IndexRow, rid, nullptr);
-    }
-  }
-  return DB_FAILED;
 }
 
 /**
