@@ -6,6 +6,7 @@
 #include "utils/tree_file_mgr.h"
 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 extern "C" {
@@ -24,6 +25,8 @@ void InitGoogleLog(char *argv) {
 
 //read_state, true reps read from file,false reps read from buffer
 bool read_state = false;
+bool ExecFile_flag = false;
+auto start_time = std::chrono::system_clock::now();
 string file_name;
 long file_pointer = 0;
 long file_size = 99999;
@@ -55,10 +58,11 @@ void InputCommand_file(char* input, const int len){
   file_pointer+=2;
   file.close();
 }
+
 void InputCommand(char *input, const int len) {
   memset(input, 0, len);
 
-  printf("BigTang minisql> ");
+  printf("StarSQL> ");
   int i = 0;
   char ch;
   while ((ch = getchar()) != ';') {
@@ -68,6 +72,13 @@ void InputCommand(char *input, const int len) {
   getchar();      // remove enter
 }
 
+std::string timeToString(std::chrono::system_clock::time_point &t) {
+  std::time_t time = std::chrono::system_clock::to_time_t(t);
+  std::string time_str = std::ctime(&time);
+  time_str.resize(time_str.size() - 1);
+  return time_str;
+}
+
 int main(int argc, char **argv) {
   InitGoogleLog(argv[0]);
   // command buffer
@@ -75,11 +86,6 @@ int main(int argc, char **argv) {
   char cmd[buf_size];
   // executor engine
   ExecuteEngine engine;
-
-
-  // for print syntax tree
-//  TreeFileManagers syntax_tree_file_mgr("syntax_tree_");
-//  uint32_t syntax_tree_id = 0;
 
   while (1) {
     if(read_state == true){
@@ -109,25 +115,28 @@ int main(int argc, char **argv) {
       printf("%s\n", MinisqlParserGetErrorMessage());
     } else {
       // Comment them out if you don't need to debug the syntax tree
-////      printf("[INFO] Sql syntax parse ok!\n");
-//      SyntaxTreePrinter printer(MinisqlGetParserRootNode());
-////      printer.PrintTree(syntax_tree_file_mgr[syntax_tree_id++]);
-//      std::string file = "Syntax_tree_wxy.txt";
-//      std::ofstream outFile(file);
-//      printer.PrintTree(outFile);
-//      outFile.close();
+      //SyntaxTreePrinter printer(MinisqlGetParserRootNode());
+      //printer.PrintTree(syntax_tree_file_mgr[syntax_tree_id++]);
+      //std::string file = "Syntax_tree_wxy.txt";
+      //std::ofstream outFile(file);
+      //printer.PrintTree(outFile);
+      //outFile.close();
     }
     auto result = engine.Execute(MinisqlGetParserRootNode());
     //Execute in file
     if(result==DB_EXECUTE ){
       file_name = MinisqlGetParserRootNode()->child_->val_;
+      start_time = std::chrono::system_clock::now();
       read_state = true;
     }
     if(file_pointer>=file_size){
       read_state = false;
       file_pointer = 0;
+      auto stop_time = std::chrono::system_clock::now();
+      double duration_time =
+          double((std::chrono::duration_cast<std::chrono::milliseconds>(stop_time - start_time)).count());
+      cout << "Total time of file execution : " << fixed << setprecision(4) << duration_time / 1000 << " sec." << std::endl;
     }
-
     // clean memory after parse
     MinisqlParserFinish();
     yy_delete_buffer(bp);
@@ -135,6 +144,8 @@ int main(int argc, char **argv) {
 
     // quit condition
     engine.ExecuteInformation(result);
+    auto time_p = std::chrono::system_clock::now();
+    cout << "Current time: " << timeToString(time_p) << endl;
     if (result == DB_QUIT) {
       break;
     }

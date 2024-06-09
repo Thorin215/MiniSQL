@@ -237,6 +237,9 @@ void ExecuteEngine::ExecuteInformation(dberr_t result) {
       cout << "Bye. " << endl;
       cout << "©2024 By Thorin215 & Star0228 & xzkz."<< endl << "For educational use only." << endl;
       break;
+    case DB_DATABASE_NOT_SELECTED:
+      cout << "No database be selected" << endl;
+      break;
     default:
       break;
   }
@@ -345,6 +348,9 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteCreateTable" << std::endl;
 #endif
+  if(current_db_ == ""){
+    return DB_DATABASE_NOT_SELECTED;
+  }
   string table_name = ast->child_->val_;
   vector<TableInfo *> tables;
   dbs_[current_db_]->catalog_mgr_->GetTables(tables);
