@@ -1,6 +1,12 @@
 #include "buffer/clock_replacer.h"
 #include <iostream>
 
+// 构造函数，初始化容量并将指针 hand_ 设置为 clock_list 的末尾
+CLOCKReplacer::CLOCKReplacer(size_t num_pages) : capacity(num_pages) {}
+
+// 析构函数，使用默认析构函数
+CLOCKReplacer::~CLOCKReplacer() = default;
+
 // 选择一个页进行替换
 bool CLOCKReplacer::Victim(frame_id_t *frame_id) {
   std::lock_guard<std::mutex> lock(mutx_);  // 加锁以保证线程安全
