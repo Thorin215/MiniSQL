@@ -508,6 +508,9 @@ dberr_t ExecuteEngine::ExecuteShowIndexes(pSyntaxNode ast, ExecuteContext *conte
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteShowIndexes" << std::endl;
 #endif
+  if(current_db_ == ""){
+    return DB_DATABASE_NOT_SELECTED;
+  }
   if (current_db_.empty()) {
     cout << "No database selected" << endl;
     return DB_FAILED;
@@ -541,11 +544,12 @@ dberr_t ExecuteEngine::ExecuteShowIndexes(pSyntaxNode ast, ExecuteContext *conte
        << "+" << setfill('-') << setw(max_w_col + 2) << ""
        << "+" << setfill('-') << setw(max_w_type + 2) << ""
        << "+" << endl;
-  cout << "+" << setfill('-') << setw(max_w_table + 2) << "Table"
-       << "+" << setfill('-') << setw(max_w_index + 2) << "Index_name"
-       << "+" << setfill('-') << setw(max_w_col + 2) << "Column_name"
-       << "+" << setfill('-') << setw(max_w_type + 2) << "Index_type"
-       << "+" << endl;
+  cout << "| " << std::left << setfill(' ') << setw(max_w_table+1) << "Table"
+       << "| " << std::left << setfill(' ') << setw(max_w_index+1) << "Index_name"
+       << "| " << std::left << setfill(' ') << setw(max_w_col+1) << "Column_name"
+       << "| " << std::left << setfill(' ') << setw(max_w_type+1) << "Index_type"
+       << "|"<<endl;
+
   cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
        << "+" << setfill('-') << setw(max_w_index + 2) << ""
        << "+" << setfill('-') << setw(max_w_col + 2) << ""
@@ -553,16 +557,18 @@ dberr_t ExecuteEngine::ExecuteShowIndexes(pSyntaxNode ast, ExecuteContext *conte
        << "+" << endl;
   int cnt_table = 0;
   for(auto index:Total_indexes){
-    cout << "| " << std::left << setfill(' ') << setw(max_w_table) << tem_tables_name[cnt_table++];
-    cout << "| " << std::left << setfill(' ') << setw(max_w_index) << index->GetIndexName();
-    cout << "| " << std::left << setfill(' ') << setw(max_w_col) ;
+    cout << "| " << std::left << setfill(' ') << setw(max_w_table+1) << tem_tables_name[cnt_table++];
+    cout << "| " << std::left << setfill(' ') << setw(max_w_index+1) << index->GetIndexName();
+    string tol_col;
     for(auto col:index->GetIndexKeySchema()->GetColumns()){
-      if(col->GetName() == index->GetIndexKeySchema()->GetColumns()[0]->GetName()){
-        cout<<col->GetName();
+      if (col->GetName() == index->GetIndexKeySchema()->GetColumns()[0]->GetName()) {
+        tol_col+=col->GetName();
+      } else {
+        tol_col += (","+col->GetName());
       }
-      cout<<","<<col->GetName();
     }
-    cout << "| " << std::left << setfill(' ') << setw(max_w_type) << "BTREE"<<endl;
+    cout << "| " << std::left << setfill(' ') << setw(max_w_col) << tol_col;
+    cout << " | " << std::left << setfill(' ') << setw(max_w_type) << "BTREE"<< " |"<<endl;
   }
   cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
        << "+" << setfill('-') << setw(max_w_index + 2) << ""

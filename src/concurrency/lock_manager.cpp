@@ -268,7 +268,6 @@ void LockManager::DeleteNode(txn_id_t txn_id) {
 void LockManager::RunCycleDetection() {
   while(enable_cycle_detection_==true) {
     this_thread::sleep_for(cycle_detection_interval_);
-    {
       unique_lock<mutex> lock_latch(latch_);
       waits_for_.clear();
       // construct the graph
@@ -311,7 +310,6 @@ void LockManager::RunCycleDetection() {
         }
       }
     }
-  }
 }
 
 /**
