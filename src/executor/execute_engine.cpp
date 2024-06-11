@@ -237,9 +237,6 @@ void ExecuteEngine::ExecuteInformation(dberr_t result) {
       cout << "Bye. " << endl;
       cout << "©2024 By Thorin215 & Star0228 & xzkz."<< endl << "For educational use only." << endl;
       break;
-    case DB_DATABASE_NOT_SELECTED:
-      cout << "No database be selected" << endl;
-      break;
     default:
       break;
   }
@@ -314,30 +311,78 @@ dberr_t ExecuteEngine::ExecuteShowTables(pSyntaxNode ast, ExecuteContext *contex
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteShowTables" << std::endl;
 #endif
+#ifdef ENABLE_EXECUTE_DEBUG
+  LOG(INFO) << "ExecuteShowIndexes" << std::endl;
+#endif
+  if(current_db_ == ""){
+    return DB_DATABASE_NOT_SELECTED;
+  }
   if (current_db_.empty()) {
     cout << "No database selected" << endl;
     return DB_FAILED;
   }
-  vector<TableInfo *> tables;
-  if (dbs_[current_db_]->catalog_mgr_->GetTables(tables) == DB_FAILED) {
-    cout << "Empty set (0.00 sec)" << endl;
-    return DB_FAILED;
+  int max_w_table = 5,max_w_index=10,max_w_col=11,max_w_type=10;
+  vector<TableInfo*> tables;
+  dbs_[current_db_]->catalog_mgr_->GetTables(tables);
+  vector<IndexInfo *> Total_indexes;
+  vector<IndexInfo* > indexes;
+  vector<string>tem_tables_name;
+  for(auto table : tables){
+    max_w_table = table->GetTableName().length()>max_w_table?table->GetTableName().length():max_w_table;
+    dbs_[current_db_]->catalog_mgr_->GetTableIndexes(table->GetTableName(),indexes);
+    for(auto index:indexes){
+      tem_tables_name.push_back(table->GetTableName());
+      max_w_index = index->GetIndexName().length()>max_w_index?index->GetIndexName().length():max_w_index;
+      int total = -1;
+      for(auto col:index->GetIndexKeySchema()->GetColumns()){
+        total+=(col->GetName().length()+1);
+      }
+      max_w_col = total>max_w_col?total:max_w_col;
+      Total_indexes.push_back(index);
+    }
   }
-  string table_in_db("Tables_in_" + current_db_);
-  uint max_width = table_in_db.length();
+  if(Total_indexes.empty()){
+    cout<<"Empty set (0.00 sec)"<<endl;
+    return DB_SUCCESS;
+  }
+  cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
+       << "+" << setfill('-') << setw(max_w_index + 2) << ""
+       << "+" << setfill('-') << setw(max_w_col + 2) << ""
+       << "+" << setfill('-') << setw(max_w_type + 2) << ""
+       << "+" << endl;
+  cout << "| " << std::left << setfill(' ') << setw(max_w_table+1) << "Table"
+       << "| " << std::left << setfill(' ') << setw(max_w_index+1) << "Index_name"
+       << "| " << std::left << setfill(' ') << setw(max_w_col+1) << "Column_name"
+       << "| " << std::left << setfill(' ') << setw(max_w_type+1) << "Index_type"
+       << "|"<<endl;
+
+  cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
+       << "+" << setfill('-') << setw(max_w_index + 2) << ""
+       << "+" << setfill('-') << setw(max_w_col + 2) << ""
+       << "+" << setfill('-') << setw(max_w_type + 2) << ""
+       << "+" << endl;
+  int cnt_table = 0;
+  for(auto index:Total_indexes){
+    cout << "| " << std::left << setfill(' ') << setw(max_w_table+1) << tem_tables_name[cnt_table++];
+    cout << "| " << std::left << setfill(' ') << setw(max_w_index+1) << index->GetIndexName();
+    string tol_col;
+    for(auto col:index->GetIndexKeySchema()->GetColumns()){
+      if (col->GetName() == index->GetIndexKeySchema()->GetColumns()[0]->GetName()) {
+        tol_col+=col->GetName();
+      } else {
+        tol_col += (","+col->GetName());
+      }
+    }
+    cout << "| " << std::left << setfill(' ') << setw(max_w_col) << tol_col;
+    cout << " | " << std::left << setfill(' ') << setw(max_w_type) << "BTREE"<< " |"<<endl;
+  }
+  cout << "+" << setfill('-') << setw(max_w_table + 2) << ""
+       << "+" << setfill('-') << setw(max_w_index + 2) << ""
+       << "+" << setfill('-') << setw(max_w_col + 2) << ""
+       << "+" << setfill('-') << setw(max_w_type + 2) << ""
+       << "+" << endl;
   for (const auto &itr : tables) {
-    if (itr->GetTableName().length() > max_width) max_width = itr->GetTableName().length();
   }
-  cout << "+" << setfill('-') << setw(max_width + 2) << ""
-       << "+" << endl;
-  cout << "| " << std::left << setfill(' ') << setw(max_width) << table_in_db << " |" << endl;
-  cout << "+" << setfill('-') << setw(max_width + 2) << ""
-       << "+" << endl;
-  for (const auto &itr : tables) {
-    cout << "| " << std::left << setfill(' ') << setw(max_width) << itr->GetTableName() << " |" << endl;
-  }
-  cout << "+" << setfill('-') << setw(max_width + 2) << ""
-       << "+" << endl;
   return DB_SUCCESS;
 }
 
@@ -348,9 +393,11 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteCreateTable" << std::endl;
 #endif
-  if(current_db_ == ""){
-    return DB_DATABASE_NOT_SELECTED;
-  }
+
+  //I don't set the index because of the initial value "0"
+  //primary keys are not placed (Maybe TableInfo)
+  //Txn is initial
+  //Schema id initial (Maybe need change)
   string table_name = ast->child_->val_;
   vector<TableInfo *> tables;
   dbs_[current_db_]->catalog_mgr_->GetTables(tables);
@@ -461,6 +508,9 @@ dberr_t ExecuteEngine::ExecuteShowIndexes(pSyntaxNode ast, ExecuteContext *conte
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteShowIndexes" << std::endl;
 #endif
+  if(current_db_ == ""){
+    return DB_DATABASE_NOT_SELECTED;
+  }
   if (current_db_.empty()) {
     cout << "No database selected" << endl;
     return DB_FAILED;
@@ -550,7 +600,7 @@ dberr_t ExecuteEngine::ExecuteCreateIndex(pSyntaxNode ast, ExecuteContext *conte
       return DB_INDEX_ALREADY_EXIST;
     }
   }
-  while( key_node->type_==kNodeIdentifier){
+  while( key_node->type_!=kNodeIdentifier){
     index_keys.push_back((string)key_node->val_);
     if(key_node->next_ == nullptr){
       break;
@@ -568,8 +618,25 @@ dberr_t ExecuteEngine::ExecuteCreateIndex(pSyntaxNode ast, ExecuteContext *conte
   dbs_[current_db_]->catalog_mgr_->GetTable(table_name_index,table_info);
 
 //  Index
-  return dbs_[current_db_]->catalog_mgr_->CreateIndex(
+  auto result = dbs_[current_db_]->catalog_mgr_->CreateIndex(
       table_name_index,index_name,index_keys, nullptr,indexInfo,index_type);
+//  return DB_SUCCESS;
+  TableHeap *tbl_heap = table_info->GetTableHeap();
+  if (result == dberr_t::DB_SUCCESS) {
+    const std::vector<uint32_t> key_mapping = indexInfo->GetKeyMap();
+    // insert the tuples already exist when creating index into the index
+    for (auto i = tbl_heap->Begin(nullptr); i != tbl_heap->End(); ++i) {
+      std::vector<Field> fields;
+      // Using the KeyMap to GetField In order to Get the Key Schema
+      for (auto iter = key_mapping.begin(); iter != key_mapping.end(); ++iter) {
+        fields.push_back(*(i->GetField(key_mapping[(*iter)])));
+      }
+      Row IndexRow(fields);
+      RowId rid(i->GetRowId());
+      indexInfo->GetIndex()->InsertEntry(IndexRow, rid, nullptr);
+    }
+  }
+  return DB_FAILED;
 }
 
 /**
