@@ -1,5 +1,5 @@
 #include "buffer/clock_replacer.h"
-#include <iostream>
+
 // CLOCKReplacer::CLOCKReplacer(size_t num_pages) : capacity(num_pages) {
 //   for (size_t i = 0; i < num_pages; i++) {
 //     clock_status[i] = make_pair(true, false);
@@ -154,14 +154,7 @@ void CLOCKReplacer::Pin(frame_id_t frame_id) {
 
 // 取消固定一个页面，表示该页面可以被替换
 void CLOCKReplacer::Unpin(frame_id_t frame_id) {
-  //std::lock_guard<std::mutex> lock(mutx_);  // 加锁以保证线程安全
-  frame_id_t to_delete_frame ;
-  if (clock_queue.size() >= capacity) {
-    std::cout << "fuck you !" << std::endl;
-    this->Victim(&to_delete_frame);
-    std::cout << to_delete_frame << std::endl;
-    // std::cout << "fuck you !" << std::endl;
-  }
+  std::lock_guard<std::mutex> lock(mutx_);  // 加锁以保证线程安全
   if (clock_status.find(frame_id) == clock_status.end()) {
     // 如果页面不在状态映射中，将其添加到队列和状态映射中
     clock_queue.push(frame_id);

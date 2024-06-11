@@ -25,7 +25,6 @@ void InitGoogleLog(char *argv) {
 
 //read_state, true reps read from file,false reps read from buffer
 bool read_state = false;
-bool ExecFile_flag = false;
 auto start_time = std::chrono::system_clock::now();
 string file_name;
 long file_pointer = 0;
