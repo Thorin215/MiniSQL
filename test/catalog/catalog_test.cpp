@@ -6,7 +6,7 @@
 
 static string db_file_name = "catalog_test.db";
 
-TEST(CatalogTest, CatalogMetaTest) {
+   TEST(CatalogTest, CatalogMetaTest) {
   char *buf = new char[PAGE_SIZE];
   CatalogMeta *meta = CatalogMeta::NewInstance();
   // fill data

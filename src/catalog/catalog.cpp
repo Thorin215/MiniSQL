@@ -1,12 +1,4 @@
 #include "catalog/catalog.h"
-
-// 序列化（Serialization）
-// 是将数据结构或对象转换成一种可存储或可传输格式的过程。在序列化后，数据可以被写入文件、发送到网络或存储在数据库中，以便在需要时可以再次还原成原始的数据结构或对象。序列化的过程通常涉及将数据转换成字节流或类似的格式，使其能够在不同平台和编程语言之间进行传输和交换。
-
-// 反序列化（Deserialization）
-// 是序列化的逆过程，即将序列化后的数据重新还原成原始的数据结构或对象。反序列化是从文件、网络数据或数据库中读取序列化的数据，并将其转换回原始形式，以便在程序中进行使用和操作。
-
-
 void CatalogMeta::SerializeTo(char *buf) const {
   ASSERT(GetSerializedSize() <= PAGE_SIZE, "Failed to serialize catalog metadata to disk.");
   MACH_WRITE_UINT32(buf, CATALOG_METADATA_MAGIC_NUM);

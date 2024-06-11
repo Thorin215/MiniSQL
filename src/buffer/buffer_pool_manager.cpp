@@ -112,6 +112,7 @@ Page *BufferPoolManager::NewPage(page_id_t &page_id) {
 /**
  * TODO: Student Implement
  */
+/*先调用disk_manager的deallocate*/
 bool BufferPoolManager::DeletePage(page_id_t page_id) {
   // 0.   Make sure you call DeallocatePage!
   // 1.   Search the page table for the requested page (P).
@@ -145,24 +146,33 @@ bool BufferPoolManager::DeletePage(page_id_t page_id) {
 /**
  * TODO: Student Implement
  */
+
 bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
   std::scoped_lock lock{latch_};
+  // 在页表中查找页面ID
   auto search = page_table_.find(page_id);
   if (search == page_table_.end()) {
+    // 如果没有找到页面，返回false
     return false;
   }
+  // 获取对应的帧ID和页面对象
   frame_id_t frame_id = search->second;
   Page *page = &(pages_[frame_id]);
+  // 如果页面的固定计数为0，返回false
   if (page->pin_count_ == 0) {
     return false;
   }
+  // 减少页面的固定计数
   page->pin_count_--;
+  // 如果固定计数减为0，将其从替换器中移除
   if (page->pin_count_ == 0) {
     replacer_->Unpin(frame_id);
   }
+  // 如果页面是脏页，设置页面的脏标志
   if (is_dirty) {
     page->is_dirty_ = true;
   }
+  // 成功完成解固定操作，返回true
   return true;
 }
 
