@@ -42,8 +42,6 @@ TEST(CLOCKReplacerTest, SampleTest) {
     EXPECT_EQ(4, value);
 
     CLOCKReplacer clock_replacer_new(5);
-    //
-    // // Scenario: unpin six elements, i.e. add them to the replacer.
     clock_replacer_new.Unpin(1);
     clock_replacer_new.Unpin(3);
     clock_replacer_new.Unpin(4);
