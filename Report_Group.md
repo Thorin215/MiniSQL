@@ -164,9 +164,9 @@ B+树中的每个结点（Node）都对应一个数据页，用于存储B+树结
 
 #### BPlusTreeInternalPage
 
-中间结点`BPlusTreeInternalPage`不存储实际的数据，它只按照顺序存储![img](https://cdn.nlark.com/yuque/__latex/4760e2f007e23d820825ba241c47ce3b.svg)个键和![img](https://cdn.nlark.com/yuque/__latex/d6f147b9f168e0b5fbec1db2ccaa315b.svg)个指针（这些指针记录的是子结点的`page_id`）。由于键和指针的数量不相等，因此我们需要将第一个键设置为INVALID，也就是说，顺序查找时需要从第二个键开始查找。在任何时候，每个中间结点至少是半满的（Half Full）。当删除操作导致某个结点不满足半满的条件，需要通过合并（Merge）相邻两个结点或是从另一个结点中借用（移动）一个元素到该结点中（Redistribute）来使该结点满足半满的条件。当插入操作导致某个结点溢出时，需要将这个结点分裂成为两个结点。
+中间结点`BPlusTreeInternalPage`不存储实际的数据，它只按照顺序存储$m$个键和$m+1$个指针（这些指针记录的是子结点的`page_id`）。由于键和指针的数量不相等，因此我们需要将第一个键设置为INVALID，也就是说，顺序查找时需要从第二个键开始查找。在任何时候，每个中间结点至少是半满的（Half Full）。当删除操作导致某个结点不满足半满的条件，需要通过合并（Merge）相邻两个结点或是从另一个结点中借用（移动）一个元素到该结点中（Redistribute)来使该结点满足半满的条件。当插入操作导致某个结点溢出时，需要将这个结点分裂成为两个结点。
 
-为了便于理解和设计，我们将键和指针以`pair`的形式顺序存储，但由于键和指针的数量不一致，我们不得已牺牲一个键的空间，将其标记为INVALID。也就是说对于B+树的每一个中间结点，我们都付出了一个键的空间代价。实际上有一种更为精细的设计选择：定义一个大小为![img](https://cdn.nlark.com/yuque/__latex/4760e2f007e23d820825ba241c47ce3b.svg)的数组连续存放键，然后定义一个大小为$m+1$的数组连续存放指针，这样设计的好处在于，一是没有空间上的浪费，二是在键值查找时CPU缓存的命中率较高（局部性原理)。
+为了便于理解和设计，我们将键和指针以`pair`的形式顺序存储，但由于键和指针的数量不一致，我们不得已牺牲一个键的空间，将其标记为INVALID。也就是说对于B+树的每一个中间结点，我们都付出了一个键的空间代价。实际上有一种更为精细的设计选择：定义一个大小为$m$的数组连续存放键，然后定义一个大小为$m+1$的数组连续存放指针，这样设计的好处在于，一是没有空间上的浪费，二是在键值查找时CPU缓存的命中率较高（局部性原理)。
 
 #### PlusTreeLeafPage
 
@@ -276,6 +276,10 @@ Lock Manager的基本思想是它维护当前活动事务持有的锁。事务�
 
 ## 验收与检验流程
 
+***PASSED IS ALL YOU NEED***
+
+![e1cd2fc01c463991b5b8e37b975ecca](https://blog-pic-thorin.oss-cn-hangzhou.aliyuncs.com/e1cd2fc01c463991b5b8e37b975ecca.png)
+
 1. 创建数据库`db0`、`db1`、`db2`，并列出所有的数据库
 
    <img src="https://blog-pic-thorin.oss-cn-hangzhou.aliyuncs.com/32f8f1e0955d09201d5164b55de152b.png" alt="32f8f1e0955d09201d5164b55de152b" style="zoom:33%;" />
@@ -301,7 +305,7 @@ Lock Manager的基本思想是它维护当前活动事务持有的锁。事务�
 
 3. 考察SQL执行以及数据插入操作
 
-    执行数据库文件`sql.txt`，向表中插入$100000$条记录, 批量执行时，所有sql执行完显示总的执行时间
+   执行数据库文件`sql.txt`，向表中插入$100000$条记录, 批量执行时，所有sql执行完显示总的执行时间
 
    <img src="https://blog-pic-thorin.oss-cn-hangzhou.aliyuncs.com/6a6e6d5c46f6133333e2ee062e47a38.png" alt="6a6e6d5c46f6133333e2ee062e47a38" style="zoom:50%;" />
 
@@ -311,13 +315,13 @@ Lock Manager的基本思想是它维护当前活动事务持有的锁。事务�
 
 5. 考察点查询操作：
 
-    ```sql
-    select * from account where id = 12599995;
-    select * from account where name = "name56789";
-    select * from account where id <> 12599995;
-    select * from account where balance <> 576.140015;
-    select * from account where name <> "name56769";
-    ```
+   ```sql
+   select * from account where id = 12599995;
+   select * from account where name = "name56789";
+   select * from account where id <> 12599995;
+   select * from account where balance <> 576.140015;
+   select * from account where name <> "name56769";
+   ```
 
    <img src="https://blog-pic-thorin.oss-cn-hangzhou.aliyuncs.com/5ccbe37cc0fd331c9566078a564c69b.png" alt="5ccbe37cc0fd331c9566078a564c69b" style="zoom: 50%;" />
 
@@ -353,17 +357,29 @@ Lock Manager的基本思想是它维护当前活动事务持有的锁。事务�
    drop index idx01;          #执行(c)的语句，此处记录执行时间t4，要求 t3<t4
    ```
 
-1. 考察更新操作：
+   **此处录制了视频（当时验收发生了小插曲），已经钉钉发送，打扰了助教哥哥，万分抱歉**
 
-1. `update account set id = ?, balance = ? where name = "name56789";`
+   
 
- 并通过`select`操作验证记录被更新
+8. 考察更新操作：`update account set id = ?, balance = ? where name = "name56789";` 并通过`select`操作验证记录被更新
 
-1. 考察删除操作：
+    <img src="https://blog-pic-thorin.oss-cn-hangzhou.aliyuncs.com/1718541691249.png" alt="1718541691249" style="zoom:50%;" />
 
-1. `delete from account where balance = ?`，并通过`select`操作验证记录被删除
-2. `delete from account`，并通过`select`操作验证全表被删除
-3. `drop table account`，并通过`show tables`验证该表
+9. 考察删除操作：
+
+    1. `delete from account where balance = ?`，并通过`select`操作验证记录被删除
+
+    2. `delete from account`，并通过`select`操作验证全表被删除
+
+    3. `drop table account`，并通过`show tables`验证该表
+
+       <img src="https://blog-pic-thorin.oss-cn-hangzhou.aliyuncs.com/43ffe6c20ae8a0135b637c177d2fffd.png" alt="43ffe6c20ae8a0135b637c177d2fffd" style="zoom:50%;" />
+
+       <img src="https://blog-pic-thorin.oss-cn-hangzhou.aliyuncs.com/7b8ab79cd8ede49c3580f17f9858b71.png" alt="7b8ab79cd8ede49c3580f17f9858b71" style="zoom:50%;" />
+
+       <img src="https://blog-pic-thorin.oss-cn-hangzhou.aliyuncs.com/3539bd013b14a0411d906f83ce20fa4.png" alt="3539bd013b14a0411d906f83ce20fa4" style="zoom:50%;" />
+
+       
 
 ## 分组与设计分工
 
@@ -378,3 +394,5 @@ Lock Manager的基本思想是它维护当前活动事务持有的锁。事务�
 - MiniSQL源代码
 - 良好的Git记录
 - 个人报告以及小组报告
+
+<img src="https://blog-pic-thorin.oss-cn-hangzhou.aliyuncs.com/5127f0218653f0e18ad1db823f613de.png" alt="5127f0218653f0e18ad1db823f613de" style="zoom:33%;" />
